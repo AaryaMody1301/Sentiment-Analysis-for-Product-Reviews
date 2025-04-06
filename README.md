@@ -37,6 +37,12 @@ A Python-based Sentiment Analysis application for product reviews that uses scik
   - Identification of missing values and very short texts
   - Warning for inappropriate column selections
   - Statistics on text length and sentiment distribution
+- **Large File Processing**:
+  - Chunk-based processing for handling CSV files up to 350 MB+
+  - Memory-efficient training with HashingVectorizer and incremental learning
+  - Automatic column detection based on content analysis
+  - Real-time progress tracking with estimated completion time
+  - Batch prediction on large files with downloadable results
 
 ## Project Structure
 
@@ -49,9 +55,12 @@ project/
 ├── src/                    # Source code directory
 │   ├── app.py              # Streamlit dashboard
 │   ├── data_loading.py     # Dataset loading and preprocessing functions
-│   └── model_training.py   # Model training and evaluation functions
+│   ├── model_training.py   # Model training and evaluation functions
+│   ├── chunked_processing.py # Large file processing functions
+│   └── utils.py            # Utility functions for file handling and logging
 │
 ├── models/                 # Directory for saved models (created automatically)
+├── tests/                  # Unit tests for application components
 ├── main.py                 # Application entry point
 ├── requirements.txt        # Dependencies
 └── README.md               # This file
@@ -99,16 +108,18 @@ project/
    - Compare different models in the "Model Comparison" tab
    - Make predictions in the "Prediction" tab
    - Manage your models in the "Model Management" tab
+   - Process large files in the "Large File Processing" tab
 
 ## Dashboard Navigation
 
-The application features a navigation menu with five main sections:
+The application features a navigation menu with six main sections:
 
 - **Data Analysis**: Explore your dataset with visualizations like sentiment distribution, word clouds, and frequency analysis
 - **Model Training**: Train different models with options for hyperparameter tuning, and view their performance metrics and feature importance
 - **Model Comparison**: Compare the performance of multiple trained models side-by-side and bulk train multiple models at once
 - **Prediction**: Make sentiment predictions on new reviews, either one at a time or in batch mode, with confidence scores
 - **Model Management**: Save trained models, load previously saved models, and delete models you no longer need
+- **Large File Processing**: Handle large CSV files (hundreds of MB) with memory-efficient processing and training
 
 ## Text Processing Options
 
@@ -143,6 +154,45 @@ It automatically maps various label formats to these standardized categories:
 - Binary classifications (e.g., 0/1, where 1 = positive, 0 = negative)
 - Text labels (e.g., "good"/"bad", "pos"/"neg", etc.)
 
+## Large File Processing
+
+The application includes specialized features for handling large CSV files efficiently:
+
+### Memory-Efficient Processing
+
+- **Chunk-based CSV Reading**: Processes files in smaller chunks (default 10,000 rows per chunk) to manage memory usage
+- **HashingVectorizer**: Uses a memory-efficient alternative to TF-IDF vectorization with no vocabulary limit
+- **Incremental Learning**: Trains the model progressively on each chunk using `partial_fit()` method
+- **Real-time Progress Tracking**: Shows progress bar and estimated completion time for long-running operations
+
+### Automatic Column Detection
+
+- Intelligently identifies text and sentiment columns based on:
+  - Column name patterns (e.g., "review", "text", "sentiment", "rating")
+  - Content analysis (text length, number of unique values)
+  - User can override the detected columns if needed
+
+### Batch Prediction on Large Files
+
+- Upload a CSV file with multiple reviews for bulk processing
+- Process and predict in chunks to handle files of any size
+- Download results as a CSV file with predictions and confidence scores
+- View a preview of results before downloading
+
+### Performance Considerations
+
+- For a 350 MB CSV file with typical review text:
+  - Processing time: Depends on CPU and disk speed (typically 10-30 minutes)
+  - Memory usage: Generally under 2 GB, even for very large files
+  - Recommended: At least 4 GB of available RAM for smooth operation
+
+### Usage Tips for Large Files
+
+1. Start with smaller chunk sizes (5,000-10,000) for machines with less memory
+2. Use a lower number of features (2^17 or 2^18) if memory is constrained
+3. If processing is very slow, consider using a smaller sample of your data first to test settings
+4. Enable lemmatization only if needed as it's more computationally expensive than stemming
+
 ## Dataset Format
 
 The application expects CSV files with at least two columns:
@@ -166,6 +216,14 @@ The application performs several validation checks on your dataset:
 - Warns about very short texts that might cause issues
 - Verifies that each sentiment class has at least 2 samples (required for train/test split)
 
+## Running Tests
+
+To run the unit tests for the application:
+
+```
+python -m unittest discover -s tests
+```
+
 ## Dependencies
 
 - streamlit==1.32.0
@@ -177,6 +235,8 @@ The application performs several validation checks on your dataset:
 - wordcloud==1.9.4
 - altair==5.2.0
 - joblib==1.4.2
+- tqdm==4.66.1
+- psutil==5.9.6
 
 ## Contribution
 

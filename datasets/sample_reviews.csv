@@ -1,11 +1,22 @@
 review_text,sentiment
-This product is amazing and exceeded my expectations!,positive
-I'm really disappointed with the quality.,negative
-Works great, would definitely recommend.,positive
-The product arrived damaged and customer service was unhelpful.,negative
-Average product, nothing special.,neutral
-Best purchase I've made all year!,positive
-Terrible experience, don't waste your money.,negative
-Good value for the price point.,positive
-Product broke after just two weeks of use.,negative
-Exactly what I was looking for!,positive 
+This product is amazing! I've been using it for a month and it works perfectly.,positive
+I absolutely love this product. It exceeded all my expectations.,positive
+Great value for money, would definitely buy again.,positive
+Works exactly as described, very satisfied with my purchase.,positive
+This is by far the best product I've ever bought in this category.,positive
+Product arrived on time and in perfect condition. Very happy.,positive
+Incredible quality for the price. Highly recommend it.,positive
+I'm really disappointed with the quality. It broke after just a few uses.,negative
+This product is terrible. Save your money and buy something else.,negative
+Complete waste of money. Don't believe the positive reviews.,negative
+The product doesn't work as advertised. Very frustrating experience.,negative
+Poor quality control. Mine arrived with several defects.,negative
+Customer service was unhelpful when I tried to return this.,negative
+Expected much better given the price point. Wouldn't recommend.,negative
+Product is okay. Not great, not terrible, just average.,neutral
+It works as expected, nothing special.,neutral
+Decent product but there are better alternatives available.,neutral
+Average quality for the price. Does the job but nothing exceptional.,neutral
+Neither impressed nor disappointed. It's an average product.,neutral
+Works fine most of the time but has some minor issues.,neutral
+Received the product on time. Still evaluating its performance.,neutral 

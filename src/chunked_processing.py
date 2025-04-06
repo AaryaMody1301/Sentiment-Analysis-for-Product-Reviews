@@ -114,7 +114,7 @@ def detect_columns(df):
     return text_col, sentiment_col
 
 def process_large_file(file_path, text_column=None, sentiment_column=None, 
-                       chunksize=10000, test_size=0.2, 
+                       chunksize=20000, test_size=0.2, 
                        remove_stopwords=True, perform_stemming=False, 
                        perform_lemmatization=True, handle_negations=True, 
                        n_features=2**18, callback=None):
@@ -139,41 +139,100 @@ def process_large_file(file_path, text_column=None, sentiment_column=None,
     """
     start_time = time.time()
     
-    # Initialize the vectorizer
+    # Initialize the vectorizer - use a larger n_features for better accuracy with large datasets
     vectorizer = HashingVectorizer(n_features=n_features, alternate_sign=False)
     
-    # Initialize model
-    model = MultinomialNB(alpha=1.0)
+    # Get file size for logging
+    file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
     
-    # Calculate total rows for progress reporting
-    total_rows = sum(1 for _ in pd.read_csv(file_path, chunksize=10000))
+    # Monitor memory usage
+    try:
+        import psutil
+        initial_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
+    except ImportError:
+        initial_memory = 0
     
-    # Initialize metrics
-    all_y_true = []
-    all_y_pred = []
+    if callback:
+        callback(0, f"Starting processing of {file_size_mb:.1f}MB file. Initial memory: {initial_memory:.1f}MB")
     
-    # First pass: detect columns if not provided
-    first_chunk = next(pd.read_csv(file_path, chunksize=min(1000, chunksize)))
+    # First, detect columns if not provided using a sample
+    sample_chunk = pd.read_csv(file_path, nrows=min(10000, chunksize))
+    first_chunk_size = len(sample_chunk)
     
     if text_column is None or sentiment_column is None:
-        detected_text_col, detected_sentiment_col = detect_columns(first_chunk)
+        detected_text_col, detected_sentiment_col = detect_columns(sample_chunk)
         text_column = text_column or detected_text_col
         sentiment_column = sentiment_column or detected_sentiment_col
     
     if callback:
-        callback(0, f"Processing file: detected columns - text: {text_column}, sentiment: {sentiment_column}")
+        callback(0.02, f"Processing file: detected columns - text: {text_column}, sentiment: {sentiment_column}")
+        
+    # Estimate total rows based on file size and first chunk
+    avg_row_size = os.path.getsize(file_path) / first_chunk_size if first_chunk_size > 0 else 0
+    estimated_total_rows = int(os.path.getsize(file_path) / avg_row_size) if avg_row_size > 0 else 0
+    
+    # Scan the entire file to find all possible sentiment classes (important to prevent errors)
+    all_sentiment_classes = set()
+    scan_chunks = 0
+    
+    if callback:
+        callback(0.05, "Scanning file to identify all sentiment classes...")
+    
+    for chunk in pd.read_csv(file_path, chunksize=chunksize):
+        scan_chunks += 1
+        if callback and scan_chunks % 5 == 0:
+            callback(0.05, f"Scanning for classes... (chunk {scan_chunks})")
+        
+        # Skip if sentiment column doesn't exist
+        if sentiment_column not in chunk.columns:
+            continue
+            
+        # Handle missing values
+        chunk = chunk.dropna(subset=[sentiment_column])
+        
+        # Normalize sentiment labels
+        chunk = normalize_sentiment_labels(chunk, sentiment_column)
+        
+        # Add sentiment values to our set
+        all_sentiment_classes.update(chunk[sentiment_column].unique())
+    
+    # Convert to sorted list for consistent order
+    all_sentiment_classes = sorted(list(all_sentiment_classes))
+    
+    if callback:
+        callback(0.1, f"Found {len(all_sentiment_classes)} sentiment classes: {all_sentiment_classes}")
+    
+    # Check if we have enough classes for classification
+    if len(all_sentiment_classes) < 2:
+        if callback:
+            callback(1.0, f"Error: Only found {len(all_sentiment_classes)} sentiment classes. Need at least 2 for classification.")
+        raise ValueError(f"Not enough sentiment classes found. Need at least 2, found: {all_sentiment_classes}")
+    
+    # Now initialize the model with knowledge of all possible classes
+    model = MultinomialNB(alpha=1.5)
     
     # Count chunks for progress
-    total_chunks = total_rows // chunksize + (1 if total_rows % chunksize > 0 else 0)
+    total_chunks = max(1, estimated_total_rows // chunksize)
     processed_chunks = 0
+    processed_rows = 0
+    
+    # These will store all test data for final evaluation
+    test_texts = []
+    test_labels = []
+    
+    # First model fit flag
+    is_first_fit = True
     
     # Process chunks
     for i, chunk in enumerate(pd.read_csv(file_path, chunksize=chunksize)):
+        chunk_start_time = time.time()
         processed_chunks += 1
+        processed_rows += len(chunk)
         
+        # Update progress more frequently for large files
         if callback:
-            progress = processed_chunks / total_chunks
-            callback(progress, f"Processing chunk {processed_chunks}/{total_chunks}")
+            progress = min(0.95, 0.1 + (processed_rows / max(processed_rows, estimated_total_rows)) * 0.85)
+            callback(progress, f"Processing chunk {processed_chunks}/{total_chunks} ({len(chunk):,} rows)")
         
         # Ensure the required columns exist
         if text_column not in chunk.columns or sentiment_column not in chunk.columns:
@@ -181,16 +240,39 @@ def process_large_file(file_path, text_column=None, sentiment_column=None,
                 callback(progress, f"Error: Required columns not found in chunk {i+1}")
             raise ValueError(f"Required columns not found: {text_column}, {sentiment_column}")
         
+        # Check for missing values
+        text_missing = chunk[text_column].isnull().sum()
+        sentiment_missing = chunk[sentiment_column].isnull().sum()
+        
+        if text_missing > 0 or sentiment_missing > 0:
+            if callback:
+                callback(progress, f"Warning: Found missing values - text: {text_missing}, sentiment: {sentiment_missing}")
+            # Drop rows with missing values to avoid errors
+            chunk = chunk.dropna(subset=[text_column, sentiment_column])
+        
+        # Handle non-string text columns
+        if chunk[text_column].dtype != 'object':
+            chunk[text_column] = chunk[text_column].astype(str)
+        
         # Preprocess text
-        chunk['processed_text'] = chunk[text_column].apply(
-            lambda x: preprocess_text(
-                x, 
-                remove_stopwords=remove_stopwords,
-                perform_stemming=perform_stemming,
-                perform_lemmatization=perform_lemmatization,
-                handle_negations=handle_negations
+        try:
+            # Create a copy to avoid SettingWithCopyWarning
+            chunk = chunk.copy()
+            
+            # Use loc to avoid SettingWithCopyWarning
+            chunk.loc[:, 'processed_text'] = chunk[text_column].apply(
+                lambda x: preprocess_text(
+                    x, 
+                    remove_stopwords=remove_stopwords,
+                    perform_stemming=perform_stemming,
+                    perform_lemmatization=perform_lemmatization,
+                    handle_negations=handle_negations
+                )
             )
-        )
+        except Exception as e:
+            if callback:
+                callback(progress, f"Error preprocessing text: {str(e)}")
+            raise
         
         # Normalize sentiment labels
         chunk = normalize_sentiment_labels(chunk, sentiment_column)
@@ -199,45 +281,109 @@ def process_large_file(file_path, text_column=None, sentiment_column=None,
         X = chunk['processed_text'].values
         y = chunk[sentiment_column].values
         
-        try:
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, stratify=y)
-        except ValueError:
-            # If stratify fails (e.g., only one class), try without stratification
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size)
+        # Skip empty chunks
+        if len(X) == 0:
+            continue
         
-        # Transform text to feature vectors - for training data
+        # Filter out any rows with sentiment values not in our predefined set
+        # This ensures consistent classes across all chunks
+        valid_indices = np.isin(y, all_sentiment_classes)
+        if not all(valid_indices):
+            if callback:
+                callback(progress, f"Warning: Filtered out {sum(~valid_indices)} rows with unknown sentiment values")
+            X = X[valid_indices]
+            y = y[valid_indices]
+            
+            # Skip if nothing left
+            if len(X) == 0:
+                continue
+        
+        # For the first chunk, save some data for testing
+        if i == 0:
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+            test_texts.extend(X_test)
+            test_labels.extend(y_test)
+        else:
+            # For subsequent chunks, use a smaller test set
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=min(0.1, test_size), random_state=42)
+            test_texts.extend(X_test)
+            test_labels.extend(y_test)
+        
+        # Transform text to feature vectors
         X_train_vec = vectorizer.transform(X_train)
         
-        # Partially fit the model
-        classes = np.unique(y_train)
-        model.partial_fit(X_train_vec, y_train, classes=classes)
+        # Partial fit the model with ALL possible classes (important!)
+        try:
+            model.partial_fit(X_train_vec, y_train, classes=all_sentiment_classes)
+            is_first_fit = False
+        except Exception as e:
+            if callback:
+                callback(progress, f"Error during model fitting: {str(e)}")
+            raise
         
-        # Transform and predict test data
-        X_test_vec = vectorizer.transform(X_test)
-        y_pred = model.predict(X_test_vec)
-        
-        # Collect true and predicted labels for overall metrics
-        all_y_true.extend(y_test)
-        all_y_pred.extend(y_pred)
-        
-        # Update progress
+        # Update progress with timing information
+        chunk_time = time.time() - chunk_start_time
         if callback:
-            callback(progress, f"Processed chunk {processed_chunks}/{total_chunks}")
+            try:
+                current_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
+                memory_diff = current_memory - initial_memory
+            except:
+                current_memory = 0
+                memory_diff = 0
+                
+            callback(progress, f"Chunk {processed_chunks} processed in {chunk_time:.1f}s. "
+                            f"Memory: {current_memory:.1f}MB (+{memory_diff:.1f}MB)")
     
-    # Calculate overall metrics
+    # Final evaluation on all test data
+    if callback:
+        callback(0.97, "Evaluating model on test data...")
+    
+    # Check if we have test data
+    if len(test_texts) == 0 or len(test_labels) == 0:
+        if callback:
+            callback(0.98, "Warning: No test data available for evaluation.")
+        return model, vectorizer, {"accuracy": 0, "precision": 0, "recall": 0, "f1_score": 0, "confusion_matrix": [[0, 0], [0, 0]]}
+    
+    # Ensure test labels are also in our class list
+    valid_test_indices = np.isin(test_labels, all_sentiment_classes)
+    if not all(valid_test_indices):
+        if callback:
+            callback(0.98, f"Warning: Filtered out {sum(~valid_test_indices)} test samples with unknown sentiment values")
+        test_texts = [test_texts[i] for i in range(len(test_texts)) if valid_test_indices[i]]
+        test_labels = [test_labels[i] for i in range(len(test_labels)) if valid_test_indices[i]]
+    
+    # Check if we have enough test data left
+    if len(test_texts) < 2:
+        if callback:
+            callback(0.98, "Warning: Not enough test data available after filtering. Using dummy metrics.")
+        return model, vectorizer, {
+            "accuracy": 0, 
+            "precision": 0, 
+            "recall": 0, 
+            "f1_score": 0, 
+            "confusion_matrix": [[0, 0], [0, 0]], 
+            "classes": all_sentiment_classes
+        }
+    
+    # Transform test data
+    X_test_vec = vectorizer.transform(test_texts)
+    
+    # Predict
+    y_pred = model.predict(X_test_vec)
+    
+    # Compute metrics
     metrics = {
-        'accuracy': accuracy_score(all_y_true, all_y_pred),
-        'precision': precision_score(all_y_true, all_y_pred, average='weighted'),
-        'recall': recall_score(all_y_true, all_y_pred, average='weighted'),
-        'f1_score': f1_score(all_y_true, all_y_pred, average='weighted'),
-        'confusion_matrix': confusion_matrix(all_y_true, all_y_pred).tolist(),
-        'classes': list(np.unique(all_y_true))
+        "accuracy": accuracy_score(test_labels, y_pred),
+        "precision": precision_score(test_labels, y_pred, average='weighted', zero_division=0),
+        "recall": recall_score(test_labels, y_pred, average='weighted', zero_division=0),
+        "f1_score": f1_score(test_labels, y_pred, average='weighted', zero_division=0),
+        "confusion_matrix": confusion_matrix(test_labels, y_pred).tolist(),
+        "classes": all_sentiment_classes
     }
     
-    processing_time = time.time() - start_time
-    
+    total_time = time.time() - start_time
     if callback:
-        callback(1.0, f"Processing complete in {processing_time:.2f} seconds")
+        callback(1.0, f"Processing complete in {total_time:.1f}s. Processed {processed_rows:,} rows.")
     
     return model, vectorizer, metrics
 

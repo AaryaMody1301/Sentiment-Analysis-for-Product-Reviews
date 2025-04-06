@@ -63,8 +63,7 @@ def get_available_datasets(directory="datasets/"):
 
 def preprocess_text(text, remove_stopwords=True, perform_stemming=False, perform_lemmatization=False, handle_negations=False):
     """
-    Preprocess text by removing punctuation, converting to lowercase,
-    removing stopwords, and optionally performing stemming or lemmatization.
+    Preprocess text for sentiment analysis.
     
     Args:
         text (str): Text to preprocess.
@@ -76,7 +75,19 @@ def preprocess_text(text, remove_stopwords=True, perform_stemming=False, perform
     Returns:
         str: Preprocessed text.
     """
+    # Handle missing values
     if pd.isna(text):
+        return ""
+    
+    # Convert to string if input is not a string
+    try:
+        if not isinstance(text, str):
+            text = str(text)
+    except:
+        return ""  # Return empty string if conversion fails
+    
+    # Handle empty strings
+    if not text.strip():
         return ""
     
     # Convert to lowercase

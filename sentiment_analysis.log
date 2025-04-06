@@ -1,0 +1,16 @@
+2025-04-06 14:46:49,692 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'col': 'col_2', 'unique': 'unique_4'}
+2025-04-06 14:46:49,694 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'Id': 'Id_1'}
+2025-04-06 14:47:16,849 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'col': 'col_2', 'unique': 'unique_1'}
+2025-04-06 14:47:16,851 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'Id': 'Id_1'}
+2025-04-06 14:47:43,557 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'col': 'col_2', 'unique': 'unique_1'}
+2025-04-06 14:47:43,559 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'Id': 'Id_1'}
+2025-04-06 14:48:20,006 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'col': 'col_2', 'unique': 'unique_1'}
+2025-04-06 14:48:20,008 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'Id': 'Id_1'}
+2025-04-06 14:48:45,985 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'col': 'col_2', 'unique': 'unique_4'}
+2025-04-06 14:48:45,990 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'Id': 'Id_1'}
+2025-04-06 14:49:17,586 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'col': 'col_2', 'unique': 'unique_4'}
+2025-04-06 14:49:17,587 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'Id': 'Id_1'}
+2025-04-06 14:49:53,116 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'col': 'col_2', 'unique': 'unique_4'}
+2025-04-06 14:49:53,120 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'Id': 'Id_1'}
+2025-04-06 14:52:13,179 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'col': 'col_2', 'unique': 'unique_4'}
+2025-04-06 14:52:13,181 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'Id': 'Id_1'}

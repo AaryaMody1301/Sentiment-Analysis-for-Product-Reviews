@@ -25,6 +25,10 @@ from src.chunked_processing import (
     detect_columns, process_large_file, predict_batch, 
     save_chunked_model, load_chunked_model, get_chunked_models
 )
+from src.utils import (
+    safe_display_dataframe, deduplicate_column_names, get_file_info,
+    format_file_size, estimate_memory_usage
+)
 
 # Download NLTK dependencies
 try:
@@ -38,6 +42,16 @@ def plot_sentiment_distribution(df, sentiment_column):
     """
     Plot the distribution of sentiment labels in the dataset.
     """
+    # Check if the sentiment column exists in the dataframe
+    if sentiment_column not in df.columns:
+        # Create a figure with warning message
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.text(0.5, 0.5, f"Error: Column '{sentiment_column}' not found in the dataset", 
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=14, color='red')
+        ax.axis('off')
+        return fig
+    
     # Count sentiments
     sentiment_counts = df[sentiment_column].value_counts().reset_index()
     sentiment_counts.columns = ['Sentiment', 'Count']
@@ -64,11 +78,44 @@ def generate_wordcloud(df, text_column, sentiment_column, sentiment_value):
     """
     Generate a word cloud for a specific sentiment.
     """
+    # Check if the required columns exist in the dataframe
+    if text_column not in df.columns or sentiment_column not in df.columns:
+        # Create a figure with warning message
+        fig, ax = plt.subplots(figsize=(10, 5))
+        missing_columns = []
+        if text_column not in df.columns:
+            missing_columns.append(text_column)
+        if sentiment_column not in df.columns:
+            missing_columns.append(sentiment_column)
+        ax.text(0.5, 0.5, f"Error: Column(s) {missing_columns} not found in the dataset", 
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=14, color='red')
+        ax.axis('off')
+        return fig
+    
     # Filter the dataframe for the specific sentiment
     filtered_df = df[df[sentiment_column] == sentiment_value]
     
+    # If no data for this sentiment, return a figure with a message
+    if filtered_df.empty:
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.text(0.5, 0.5, f"No data found for sentiment: {sentiment_value}", 
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=14, color='orange')
+        ax.axis('off')
+        return fig
+    
     # Combine all reviews for the sentiment
     all_text = ' '.join(filtered_df[text_column].tolist())
+    
+    # If there's no text, return a figure with a message
+    if not all_text.strip():
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.text(0.5, 0.5, f"No text data found for sentiment: {sentiment_value}", 
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=14, color='orange')
+        ax.axis('off')
+        return fig
     
     # Generate the word cloud
     wordcloud = WordCloud(width=800, height=400, background_color='white', max_words=100).generate(all_text)
@@ -184,6 +231,15 @@ def main():
     st.title("Product Review Sentiment Analysis")
     st.write("Analyze sentiment in product reviews using machine learning.")
     
+    # Check for large dataset warning
+    if 'large_dataset_warning_shown' in st.session_state and st.session_state['large_dataset_warning_shown']:
+        st.warning(f"⚠️ You have a large dataset ({st.session_state['large_dataset_name']}, {st.session_state['large_dataset_size']:.1f}MB). "
+                   f"Please use the **Large File Processing** page for better performance.")
+        # Automatically select the Large File Processing page
+        default_page = "Large File Processing"
+    else:
+        default_page = "Data Analysis"
+    
     # Create sidebar for dataset selection
     with st.sidebar:
         st.header("Dataset Selection")
@@ -211,7 +267,8 @@ def main():
         st.header("Navigation")
         page = st.radio(
             "Go to",
-            ["Data Analysis", "Model Training", "Model Comparison", "Prediction", "Model Management", "Large File Processing"]
+            ["Data Analysis", "Model Training", "Model Comparison", "Prediction", "Model Management", "Large File Processing"],
+            index=5 if default_page == "Large File Processing" else 0
         )
 
     # Main area for dataset preview and model training
@@ -239,22 +296,32 @@ def main():
         
         # Display dataset source and preview
         st.subheader(f"Dataset: {st.session_state.get('dataset_source', 'Preview')}")
-        st.write(df.head())
+        # Use safe display function instead of direct write
+        safe_display_dataframe(df, st, max_rows=5)
         
         # Column selection
         st.subheader("Column Selection")
         text_columns = df.columns.tolist()
         
+        # Get default column guesses based on common column names
+        default_text_col = next((col for col in ['review_text', 'review', 'text', 'comment', 'Review'] 
+                                 if col in text_columns), text_columns[0])
+        default_sentiment_col = next((col for col in ['sentiment', 'label', 'class', 'Sentiment'] 
+                                      if col in text_columns), 
+                                      text_columns[0] if len(text_columns) == 1 else text_columns[1])
+        
         # Select text column
         text_column = st.selectbox(
             "Select the column containing review text",
-            text_columns
+            text_columns,
+            index=text_columns.index(default_text_col)
         )
         
         # Select sentiment column
         sentiment_column = st.selectbox(
             "Select the column containing sentiment labels",
-            text_columns
+            text_columns,
+            index=text_columns.index(default_sentiment_col)
         )
         
         # Validate column selections
@@ -289,7 +356,14 @@ def main():
             short_texts = df[df['text_length'] < 5]
             if not short_texts.empty:
                 st.warning(f"Found {len(short_texts)} very short texts (less than 5 characters). These might cause issues during analysis.")
-                st.write(short_texts[[text_column, sentiment_column, 'text_length']].head())
+                
+                # Use safe display function for short texts
+                if text_column != sentiment_column:
+                    # Prepare a view with just the columns we want to show
+                    display_df = short_texts[[text_column, sentiment_column, 'text_length']]
+                    safe_display_dataframe(display_df, st, max_rows=5)
+                else:
+                    safe_display_dataframe(short_texts, st, max_rows=5)
         
         # Store column selections in session state
         if 'text_column' not in st.session_state or st.session_state['text_column'] != text_column:
@@ -325,6 +399,18 @@ def main():
             # Only proceed if text and sentiment columns are selected and different
             if text_column == sentiment_column:
                 st.error("Error: Text column and sentiment column cannot be the same.")
+                return
+            
+            # Verify that the selected columns exist
+            missing_columns = []
+            if text_column not in df.columns:
+                missing_columns.append(text_column)
+            if sentiment_column not in df.columns:
+                missing_columns.append(sentiment_column)
+            
+            if missing_columns:
+                st.error(f"Error: The following selected columns do not exist in the dataset: {', '.join(missing_columns)}")
+                st.info("Please select valid columns from the dropdowns above.")
                 return
             
             # Show a warning if the text column might not contain text
@@ -892,7 +978,16 @@ def main():
                             })
                         
                         # Display results
-                        st.dataframe(results_df)
+                        st.subheader("Prediction Results")
+                        
+                        # Prepare results for display
+                        display_cols = ['Review', 'Sentiment']
+                        if 'Confidence (positive)' in results_df.columns:
+                            display_cols.append('Confidence (positive)')
+                        
+                        # Use safe display
+                        display_results = results_df[display_cols] if all(col in results_df.columns for col in display_cols) else results_df
+                        safe_display_dataframe(display_results, st)
         
         # Model Management Page
         elif page == "Model Management":
@@ -994,163 +1089,314 @@ def main():
             st.header("Large File Processing")
             st.info("This page allows you to process large CSV files (hundreds of MB) efficiently using chunk-based processing.")
             
-            # File upload and options section
-            st.subheader("Upload Large CSV File")
-            large_file = st.file_uploader("Upload your large CSV file", type=['csv'], key="large_csv_uploader")
+            # Show optimization tips for very large files
+            with st.expander("Tips for Processing Very Large Files (100MB+)"):
+                st.markdown("""
+                ### Optimization Tips for Very Large Files
+                
+                1. **Increase Chunk Size**: For 300MB+ files, a chunk size of 30,000-50,000 rows often works best
+                2. **Reduce Features**: Use fewer features (2^17 or 2^18) to save memory
+                3. **Simplify Preprocessing**: Disable lemmatization for faster processing
+                4. **Sample Your Data**: Consider using a subset of your data for initial exploration
+                5. **Be Patient**: Processing a 300MB file may take 10-20 minutes depending on your system
+                
+                For the absolute best performance with very large files (500MB+), consider:
+                - Using a smaller subset of the data for initial model development
+                - Upgrading your RAM if possible
+                - Running the application on a more powerful machine
+                """)
             
-            if large_file:
-                # Save the file to a temporary location
-                file_path = os.path.join("datasets", large_file.name)
-                with open(file_path, "wb") as f:
-                    f.write(large_file.getbuffer())
-                
-                st.success(f"File uploaded successfully: {large_file.name}")
-                
-                # Preview the first few rows
-                try:
-                    preview_rows = pd.read_csv(file_path, nrows=5)
-                    st.subheader("Data Preview")
-                    st.write(preview_rows)
-                except Exception as e:
-                    st.error(f"Error reading file: {str(e)}")
-                    return
-                
-                # Auto-detect columns
-                text_col, sentiment_col = detect_columns(preview_rows)
-                
-                # Column selection
-                st.subheader("Column Selection")
-                
-                # Display the detected columns
-                st.info(f"Auto-detected columns - Text: {text_col}, Sentiment: {sentiment_col}")
-                
-                # Allow user to override
-                available_columns = preview_rows.columns.tolist()
-                
-                selected_text_col = st.selectbox(
-                    "Select the column containing review text",
-                    available_columns,
-                    index=available_columns.index(text_col) if text_col in available_columns else 0
+            # File upload and options section
+            st.subheader("Upload or Select Large CSV File")
+            
+            # Option to use a previously uploaded file
+            if 'large_dataset_warning_shown' in st.session_state and st.session_state['large_dataset_warning_shown']:
+                use_existing = st.checkbox(
+                    f"Use existing large file: {st.session_state['large_dataset_name']} ({st.session_state['large_dataset_size']:.1f}MB)",
+                    value=True
                 )
                 
-                selected_sentiment_col = st.selectbox(
-                    "Select the column containing sentiment labels",
-                    available_columns,
-                    index=available_columns.index(sentiment_col) if sentiment_col in available_columns else 0
-                )
-                
-                # Processing parameters
-                st.subheader("Processing Parameters")
-                
-                chunk_size = st.number_input(
-                    "Chunk size (rows per batch)",
-                    min_value=1000,
-                    max_value=50000,
-                    value=10000,
-                    step=1000,
-                    help="Number of rows to process at once. Larger values use more memory."
-                )
-                
-                test_split = st.slider(
-                    "Test set percentage",
-                    min_value=10,
-                    max_value=40,
-                    value=20,
-                    help="Percentage of data to use for testing the model"
-                ) / 100
-                
-                n_features = st.select_slider(
-                    "Number of features",
-                    options=[2**16, 2**17, 2**18, 2**19, 2**20],
-                    value=2**18,
-                    format_func=lambda x: f"{x:,} ({2**x if x < 30 else x:,})",
-                    help="Number of features for the HashingVectorizer. More features can capture more patterns but use more memory."
-                )
-                
-                # Text preprocessing options in two columns
-                st.subheader("Text Preprocessing Options")
-                preproc_col1, preproc_col2 = st.columns(2)
-                
-                with preproc_col1:
-                    remove_stopwords = st.checkbox("Remove stopwords", value=True, key="large_stopwords")
-                    perform_stemming = st.checkbox("Perform stemming", value=False, key="large_stemming")
-                
-                with preproc_col2:
-                    perform_lemmatization = st.checkbox("Perform lemmatization", value=True, key="large_lemma")
-                    handle_negations = st.checkbox("Handle negations", value=True, key="large_negation")
-                
-                # Model name
-                model_name = st.text_input(
-                    "Model name",
-                    value=f"Large_NB_{time.strftime('%Y%m%d_%H%M%S')}",
-                    help="Name for the saved model"
-                )
-                
-                # Process button
-                if st.button("Process and Train Model", key="process_large_file"):
-                    # Create a progress bar and status message
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
+                if use_existing:
+                    file_path = st.session_state['large_dataset_path']
+                    large_file_name = st.session_state['large_dataset_name']
+                    st.success(f"Using existing file: {large_file_name}")
                     
-                    # Callback for progress updates
-                    def progress_callback(progress, message):
-                        progress_bar.progress(progress)
-                        status_text.text(message)
-                    
+                    # Preview the first few rows
                     try:
-                        # Process the file in chunks
-                        model, vectorizer, metrics = process_large_file(
-                            file_path=file_path,
-                            text_column=selected_text_col,
-                            sentiment_column=selected_sentiment_col,
-                            chunksize=chunk_size,
-                            test_size=test_split,
-                            remove_stopwords=remove_stopwords,
-                            perform_stemming=perform_stemming,
-                            perform_lemmatization=perform_lemmatization,
-                            handle_negations=handle_negations,
-                            n_features=n_features,
-                            callback=progress_callback
-                        )
-                        
-                        # Save the model
-                        model_dir = save_chunked_model(model, vectorizer, metrics, model_name)
-                        
-                        # Store model info in session state
-                        if 'chunked_models' not in st.session_state:
-                            st.session_state['chunked_models'] = {}
-                        
-                        st.session_state['chunked_models'][model_name] = {
-                            'model': model,
-                            'vectorizer': vectorizer,
-                            'metrics': metrics,
-                            'path': model_dir
-                        }
-                        
-                        # Show success message
-                        st.success(f"Model trained and saved successfully!")
-                        
-                        # Show metrics
-                        st.subheader("Model Performance Metrics")
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            st.metric("Accuracy", f"{metrics['accuracy']:.4f}")
-                            st.metric("Precision", f"{metrics['precision']:.4f}")
-                        
-                        with col2:
-                            st.metric("Recall", f"{metrics['recall']:.4f}")
-                            st.metric("F1 Score", f"{metrics['f1_score']:.4f}")
-                        
-                        # Display confusion matrix
-                        st.subheader("Confusion Matrix")
-                        conf_matrix = np.array(metrics['confusion_matrix'])
-                        labels = metrics.get('classes', ['positive', 'negative'])
-                        fig = plot_confusion_matrix(conf_matrix, labels)
-                        st.pyplot(fig)
-                        
+                        preview_rows = pd.read_csv(file_path, nrows=5)
+                        st.subheader("Data Preview")
+                        safe_display_dataframe(preview_rows, st)
                     except Exception as e:
-                        st.error(f"Error processing file: {str(e)}")
+                        st.error(f"Error reading file: {str(e)}")
+                        return
+                    
+                    # Auto-detect columns
+                    text_col, sentiment_col = detect_columns(preview_rows)
+                else:
+                    large_file = st.file_uploader("Upload your large CSV file", type=['csv'], key="large_csv_uploader")
+                    if not large_file:
+                        return
+                    
+                    # Save the file to a temporary location
+                    file_path = os.path.join("datasets", large_file.name)
+                    with open(file_path, "wb") as f:
+                        f.write(large_file.getbuffer())
+                    
+                    file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+                    large_file_name = large_file.name
+                    
+                    st.success(f"File uploaded successfully: {large_file_name} ({file_size_mb:.1f}MB)")
+                    
+                    # Preview the first few rows
+                    try:
+                        preview_rows = pd.read_csv(file_path, nrows=5)
+                        st.subheader("Data Preview")
+                        safe_display_dataframe(preview_rows, st)
+                    except Exception as e:
+                        st.error(f"Error reading file: {str(e)}")
+                        return
+                    
+                    # Auto-detect columns
+                    text_col, sentiment_col = detect_columns(preview_rows)
+            else:
+                large_file = st.file_uploader("Upload your large CSV file", type=['csv'], key="large_csv_uploader")
+                
+                if not large_file:
+                    # Allow selecting from existing large datasets
+                    large_datasets = []
+                    datasets_dir = "datasets"
+                    if os.path.exists(datasets_dir):
+                        for filename in os.listdir(datasets_dir):
+                            file_path = os.path.join(datasets_dir, filename)
+                            if os.path.isfile(file_path) and filename.endswith('.csv'):
+                                file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+                                if file_size_mb > 10:  # Only show files larger than 10MB
+                                    large_datasets.append((filename, file_size_mb, file_path))
+                    
+                    if large_datasets:
+                        st.subheader("Or select an existing large dataset")
+                        dataset_options = [f"{name} ({size:.1f}MB)" for name, size, _ in large_datasets]
+                        dataset_option = st.selectbox("Select a dataset", [""] + dataset_options)
+                        
+                        if dataset_option:
+                            # Find the selected dataset info
+                            selected_idx = dataset_options.index(dataset_option)
+                            large_file_name, _, file_path = large_datasets[selected_idx]
+                            
+                            st.success(f"Selected dataset: {large_file_name}")
+                            
+                            # Preview the first few rows
+                            try:
+                                preview_rows = pd.read_csv(file_path, nrows=5)
+                                st.subheader("Data Preview")
+                                safe_display_dataframe(preview_rows, st)
+                            except Exception as e:
+                                st.error(f"Error reading file: {str(e)}")
+                                return
+                            
+                            # Auto-detect columns
+                            text_col, sentiment_col = detect_columns(preview_rows)
+                        else:
+                            return
+                    else:
+                        st.info("Please upload a CSV file to continue.")
+                        return
+                else:
+                    # Save the file to a temporary location
+                    file_path = os.path.join("datasets", large_file.name)
+                    with open(file_path, "wb") as f:
+                        f.write(large_file.getbuffer())
+                    
+                    large_file_name = large_file.name
+                    st.success(f"File uploaded successfully: {large_file_name}")
+                    
+                    # Preview the first few rows
+                    try:
+                        preview_rows = pd.read_csv(file_path, nrows=5)
+                        st.subheader("Data Preview")
+                        safe_display_dataframe(preview_rows, st)
+                    except Exception as e:
+                        st.error(f"Error reading file: {str(e)}")
+                        return
+                    
+                    # Auto-detect columns
+                    text_col, sentiment_col = detect_columns(preview_rows)
+            
+            # Column selection
+            st.subheader("Column Selection")
+            
+            # Display the detected columns
+            st.info(f"Auto-detected columns - Text: {text_col}, Sentiment: {sentiment_col}")
+            
+            # Get all column names
+            try:
+                available_columns = preview_rows.columns.tolist()
+            except:
+                available_columns = []
+            
+            # Allow user to override
+            selected_text_col = st.selectbox(
+                "Select the column containing review text",
+                available_columns,
+                index=available_columns.index(text_col) if text_col in available_columns else 0
+            )
+            
+            selected_sentiment_col = st.selectbox(
+                "Select the column containing sentiment labels",
+                available_columns,
+                index=available_columns.index(sentiment_col) if sentiment_col in available_columns else 0
+            )
+            
+            # Processing parameters
+            st.subheader("Processing Parameters")
+            
+            # Get file size for recommending optimal parameters
+            try:
+                file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+                
+                # Set appropriate defaults based on file size
+                if file_size_mb > 300:
+                    default_chunk_size = 50000
+                    default_features = 2**18
+                    default_lemma = False
+                elif file_size_mb > 100:
+                    default_chunk_size = 30000
+                    default_features = 2**18
+                    default_lemma = True
+                else:
+                    default_chunk_size = 20000
+                    default_features = 2**19
+                    default_lemma = True
+            except:
+                default_chunk_size = 20000
+                default_features = 2**18
+                default_lemma = True
+                file_size_mb = "unknown"
+            
+            # Display recommendation
+            st.write(f"Recommended settings for {file_size_mb}MB file:")
+            
+            chunk_size = st.number_input(
+                "Chunk size (rows per batch)",
+                min_value=5000,
+                max_value=100000,
+                value=default_chunk_size,
+                step=5000,
+                help="Number of rows to process at once. Larger values use more memory but are faster."
+            )
+            
+            test_split = st.slider(
+                "Test set percentage",
+                min_value=5,
+                max_value=30,
+                value=10,
+                help="Percentage of data to use for testing the model"
+            ) / 100
+            
+            n_features = st.select_slider(
+                "Number of features",
+                options=[2**16, 2**17, 2**18, 2**19, 2**20],
+                value=default_features,
+                format_func=lambda x: f"{x:,} ({x:,})",
+                help="Number of features for the HashingVectorizer. More features can capture more patterns but use more memory."
+            )
+            
+            # Text preprocessing options in two columns
+            st.subheader("Text Preprocessing Options")
+            preproc_col1, preproc_col2 = st.columns(2)
+            
+            with preproc_col1:
+                remove_stopwords = st.checkbox("Remove stopwords", value=True, key="large_stopwords")
+                perform_stemming = st.checkbox("Perform stemming", value=not default_lemma, key="large_stemming")
+            
+            with preproc_col2:
+                perform_lemmatization = st.checkbox("Perform lemmatization", value=default_lemma, key="large_lemma")
+                handle_negations = st.checkbox("Handle negations", value=True, key="large_negation")
+            
+            # Model name
+            model_name = st.text_input(
+                "Model name",
+                value=f"Large_NB_{time.strftime('%Y%m%d_%H%M%S')}",
+                help="Name for the saved model"
+            )
+            
+            # Process button
+            if st.button("Process and Train Model", key="process_large_file"):
+                # Create a progress bar and status message
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Callback for progress updates
+                def progress_callback(progress, message):
+                    progress_bar.progress(progress)
+                    status_text.text(message)
+                
+                # Verify that the system has enough RAM
+                try:
+                    import psutil
+                    available_ram = psutil.virtual_memory().available / (1024 * 1024)
+                    if available_ram < file_size_mb * 2 and file_size_mb > 100:
+                        st.warning(f"⚠️ Available RAM ({available_ram:.0f}MB) may be insufficient for processing "
+                                f"a {file_size_mb:.0f}MB file. Consider reducing chunk size or features.")
+                except ImportError:
+                    pass  # Skip RAM check if psutil is not available
+                
+                try:
+                    # Process the file in chunks
+                    model, vectorizer, metrics = process_large_file(
+                        file_path=file_path,
+                        text_column=selected_text_col,
+                        sentiment_column=selected_sentiment_col,
+                        chunksize=chunk_size,
+                        test_size=test_split,
+                        remove_stopwords=remove_stopwords,
+                        perform_stemming=perform_stemming,
+                        perform_lemmatization=perform_lemmatization,
+                        handle_negations=handle_negations,
+                        n_features=n_features,
+                        callback=progress_callback
+                    )
+                    
+                    # Save the model
+                    model_dir = save_chunked_model(model, vectorizer, metrics, model_name)
+                    
+                    # Store model info in session state
+                    if 'chunked_models' not in st.session_state:
+                        st.session_state['chunked_models'] = {}
+                    
+                    st.session_state['chunked_models'][model_name] = {
+                        'model': model,
+                        'vectorizer': vectorizer,
+                        'metrics': metrics,
+                        'path': model_dir
+                    }
+                    
+                    # Show success message
+                    st.success(f"Model trained and saved successfully!")
+                    
+                    # Show metrics
+                    st.subheader("Model Performance Metrics")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.metric("Accuracy", f"{metrics['accuracy']:.4f}")
+                        st.metric("Precision", f"{metrics['precision']:.4f}")
+                    
+                    with col2:
+                        st.metric("Recall", f"{metrics['recall']:.4f}")
+                        st.metric("F1 Score", f"{metrics['f1_score']:.4f}")
+                    
+                    # Display confusion matrix
+                    st.subheader("Confusion Matrix")
+                    conf_matrix = np.array(metrics['confusion_matrix'])
+                    labels = metrics.get('classes', ['positive', 'negative'])
+                    fig = plot_confusion_matrix(conf_matrix, labels)
+                    st.pyplot(fig)
+                    
+                except Exception as e:
+                    st.error(f"Error processing file: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
             
             # Batch prediction section
             st.subheader("Batch Prediction with Trained Models")
@@ -1258,7 +1504,9 @@ def main():
                                     if col.startswith('confidence_'):
                                         display_cols.append(col)
                             
-                            st.write(results[display_cols])
+                            # Use safe display
+                            display_results = results[display_cols] if all(col in results.columns for col in display_cols) else results
+                            safe_display_dataframe(display_results, st)
                             
                             # Download button for results
                             csv = results[display_cols].to_csv(index=False)
@@ -1352,7 +1600,9 @@ def main():
                                             if col.startswith('confidence_'):
                                                 display_cols.append(col)
                                     
-                                    st.write(results[display_cols].head(20))
+                                    # Use safe display
+                                    display_results = results[display_cols] if all(col in results.columns for col in display_cols) else results
+                                    safe_display_dataframe(display_results.head(20), st)
                                     
                                     # Save results to file
                                     results_path = os.path.join("datasets", f"results_{prediction_file.name}")
