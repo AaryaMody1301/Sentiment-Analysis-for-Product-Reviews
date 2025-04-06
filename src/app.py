@@ -10,6 +10,9 @@ from collections import Counter
 from wordcloud import WordCloud
 import numpy as np
 import time
+import joblib
+import tempfile
+import random
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -231,11 +234,12 @@ def main():
     st.title("Product Review Sentiment Analysis")
     st.write("Analyze sentiment in product reviews using machine learning.")
     
-    # Check for large dataset warning
+    # Import os again to prevent UnboundLocalError
+    import os
+    
+    # Check for large dataset warning from main.py
     if 'large_dataset_warning_shown' in st.session_state and st.session_state['large_dataset_warning_shown']:
-        st.warning(f"⚠️ You have a large dataset ({st.session_state['large_dataset_name']}, {st.session_state['large_dataset_size']:.1f}MB). "
-                   f"Please use the **Large File Processing** page for better performance.")
-        # Automatically select the Large File Processing page
+        st.info(f"📊 Large dataset detected: {st.session_state['large_dataset_name']} ({st.session_state['large_dataset_size']:.1f}MB). Consider using the 'Large File Processing' section for better performance.")
         default_page = "Large File Processing"
     else:
         default_page = "Data Analysis"
@@ -379,13 +383,15 @@ def main():
         prep_col1, prep_col2 = st.columns(2)
         
         with prep_col1:
-            remove_stopwords = st.checkbox("Remove stopwords", value=True)
-            perform_stemming = st.checkbox("Perform stemming", value=False)
+            remove_stopwords = st.checkbox("Remove stopwords", value=True, key="general_remove_stopwords")
+            perform_stemming = st.checkbox("Perform stemming", value=False, key="general_stemming")
         
         with prep_col2:
             perform_lemmatization = st.checkbox("Perform lemmatization", value=True, 
+                                              key="general_lemmatization",
                                               help="Converts words to their base form (e.g., 'running' → 'run'). Takes precedence over stemming.")
             handle_negations = st.checkbox("Handle negations", value=True,
+                                         key="general_negations",
                                          help="Preserves negations in the text (e.g., 'not good' → 'not_good')")
         
         # Display warning if both stemming and lemmatization are selected
@@ -490,16 +496,16 @@ def main():
             model_name = st.selectbox("Select a model", model_names)
             
             # Binary classification option
-            binary_sentiments = st.checkbox("Use only positive/negative sentiments", value=True)
+            binary_sentiments = st.checkbox("Use only positive/negative sentiments", value=True, key="training_binary")
             
             # Hyperparameter tuning option
-            tune_hyperparameters = st.checkbox("Perform hyperparameter tuning", value=False)
+            tune_hyperparameters = st.checkbox("Perform hyperparameter tuning", value=False, key="training_tune")
             
             if tune_hyperparameters:
                 st.info("Hyperparameter tuning may take some time to complete.")
             
             # Save model option
-            save_model_option = st.checkbox("Save model after training", value=False)
+            save_model_option = st.checkbox("Save model after training", value=False, key="training_save")
             
             # Train model button
             if st.button("Train Model"):
@@ -884,7 +890,7 @@ def main():
             new_review = st.text_area("Enter a new product review to analyze")
             
             # Show confidence scores option
-            show_confidence = st.checkbox("Show confidence scores", value=True)
+            show_confidence = st.checkbox("Show confidence scores", value=True, key="prediction_confidence")
             
             # Batch prediction option
             st.subheader("Batch Prediction")
@@ -983,11 +989,13 @@ def main():
                         # Prepare results for display
                         display_cols = ['Review', 'Sentiment']
                         if 'Confidence (positive)' in results_df.columns:
-                            display_cols.append('Confidence (positive)')
-                        
-                        # Use safe display
-                        display_results = results_df[display_cols] if all(col in results_df.columns for col in display_cols) else results_df
-                        safe_display_dataframe(display_results, st)
+                            for col in results_df.columns:
+                                if col.startswith('confidence_'):
+                                    display_cols.append(col)
+                            
+                            # Use safe display
+                            display_results = results_df[display_cols] if all(col in results_df.columns for col in display_cols) else results_df
+                            safe_display_dataframe(display_results, st)
         
         # Model Management Page
         elif page == "Model Management":
@@ -1097,29 +1105,48 @@ def main():
                 1. **Increase Chunk Size**: For 300MB+ files, a chunk size of 30,000-50,000 rows often works best
                 2. **Reduce Features**: Use fewer features (2^17 or 2^18) to save memory
                 3. **Simplify Preprocessing**: Disable lemmatization for faster processing
-                4. **Sample Your Data**: Consider using a subset of your data for initial exploration
-                5. **Be Patient**: Processing a 300MB file may take 10-20 minutes depending on your system
+                4. **Use Fast Mode**: Enable the "Fast Processing Mode" toggle for very large files
+                5. **Be Patient**: Processing may take some time depending on your system
                 
                 For the absolute best performance with very large files (500MB+), consider:
                 - Using a smaller subset of the data for initial model development
+                - Using the 'Sample Dataset' option to train on a subset
                 - Upgrading your RAM if possible
-                - Running the application on a more powerful machine
                 """)
+            
+            # Add a toggle for fast processing mode
+            fast_mode = st.checkbox("Fast Processing Mode", value=True, 
+                                  key="large_fast_mode",
+                                  help="Speeds up processing by sampling data and simplifying preprocessing. Recommended for files over 100MB.")
+            
+            # Add ultra optimization mode for very large files
+            ultra_mode = st.checkbox("Ultra Optimization Mode", value=file_size_mb > 200 if 'file_size_mb' in locals() else False,
+                                   key="large_ultra_mode",
+                                   help="Maximum optimization for very large files (>200MB). Uses aggressive sampling, simplified preprocessing, and processes only a portion of the file.")
+            
+            # Add emergency mode for extremely large files
+            emergency_mode = False
+            if 'file_size_mb' in locals() and file_size_mb > 250:
+                emergency_mode = st.checkbox("Emergency Mode for Very Large Files", value=True, 
+                                          key="emergency_mode",
+                                          help="Use absolute minimal processing for extremely large files (>250MB). Will create a tiny sample and disable all heavy processing.")
             
             # File upload and options section
             st.subheader("Upload or Select Large CSV File")
             
-            # Option to use a previously uploaded file
-            if 'large_dataset_warning_shown' in st.session_state and st.session_state['large_dataset_warning_shown']:
-                use_existing = st.checkbox(
-                    f"Use existing large file: {st.session_state['large_dataset_name']} ({st.session_state['large_dataset_size']:.1f}MB)",
-                    value=True
-                )
+            # If there's a large dataset warning, show option to directly use that dataset
+            has_large_dataset = 'large_dataset_name' in st.session_state
+            
+            if has_large_dataset:
+                use_existing = st.checkbox(f"Use detected large dataset: {st.session_state['large_dataset_name']} ({st.session_state['large_dataset_size']:.1f}MB)", 
+                                        key="large_use_existing")
                 
                 if use_existing:
                     file_path = st.session_state['large_dataset_path']
                     large_file_name = st.session_state['large_dataset_name']
-                    st.success(f"Using existing file: {large_file_name}")
+                    file_size_mb = st.session_state['large_dataset_size']
+                    
+                    st.success(f"Using dataset: {large_file_name} ({file_size_mb:.1f}MB)")
                     
                     # Preview the first few rows
                     try:
@@ -1256,25 +1283,40 @@ def main():
                 
                 # Set appropriate defaults based on file size
                 if file_size_mb > 300:
-                    default_chunk_size = 50000
-                    default_features = 2**18
+                    default_chunk_size = 10000 if emergency_mode else (50000 if not fast_mode else 75000)
+                    default_features = 2**16 if emergency_mode else (2**17 if ultra_mode else (2**18 if fast_mode else 2**19))
                     default_lemma = False
                 elif file_size_mb > 100:
-                    default_chunk_size = 30000
-                    default_features = 2**18
-                    default_lemma = True
+                    default_chunk_size = 20000 if emergency_mode else (30000 if not fast_mode else 50000)
+                    default_features = 2**16 if emergency_mode else (2**17 if ultra_mode else 2**18)
+                    default_lemma = False if emergency_mode or ultra_mode else not fast_mode
                 else:
-                    default_chunk_size = 20000
-                    default_features = 2**19
-                    default_lemma = True
+                    default_chunk_size = 10000 if emergency_mode else (20000 if not fast_mode else 30000)
+                    default_features = 2**17 if emergency_mode else (2**18 if ultra_mode else (2**19 if not fast_mode else 2**18))
+                    default_lemma = False if emergency_mode or ultra_mode else not fast_mode
             except:
-                default_chunk_size = 20000
+                default_chunk_size = 20000 if not fast_mode else 30000
                 default_features = 2**18
-                default_lemma = True
+                default_lemma = not fast_mode
                 file_size_mb = "unknown"
             
             # Display recommendation
             st.write(f"Recommended settings for {file_size_mb}MB file:")
+            
+            # Add option to sample dataset
+            use_sample = st.checkbox("Train on dataset sample only", 
+                                   value=(fast_mode and file_size_mb > 100) or ultra_mode or emergency_mode,
+                                   disabled=ultra_mode or emergency_mode,  # Always sample in ultra/emergency mode
+                                   key="large_use_sample",
+                                   help="Process only a subset of the dataset. Much faster, but may affect accuracy.")
+            
+            if use_sample or ultra_mode or emergency_mode:
+                sample_size = st.slider("Sample size (% of dataset)", 
+                                      min_value=1 if emergency_mode else (5 if ultra_mode else 10), 
+                                      max_value=10 if emergency_mode else (30 if ultra_mode else 50), 
+                                      value=5 if emergency_mode else (10 if ultra_mode else 20), 
+                                      step=1 if emergency_mode else 5,
+                                      help="Percentage of the dataset to use for training")
             
             chunk_size = st.number_input(
                 "Chunk size (rows per batch)",
@@ -1285,40 +1327,26 @@ def main():
                 help="Number of rows to process at once. Larger values use more memory but are faster."
             )
             
-            test_split = st.slider(
-                "Test set percentage",
-                min_value=5,
-                max_value=30,
-                value=10,
-                help="Percentage of data to use for testing the model"
-            ) / 100
-            
             n_features = st.select_slider(
                 "Number of features",
                 options=[2**16, 2**17, 2**18, 2**19, 2**20],
                 value=default_features,
-                format_func=lambda x: f"{x:,} ({x:,})",
-                help="Number of features for the HashingVectorizer. More features can capture more patterns but use more memory."
+                help="More features may improve accuracy but use more memory."
             )
             
-            # Text preprocessing options in two columns
-            st.subheader("Text Preprocessing Options")
-            preproc_col1, preproc_col2 = st.columns(2)
+            # Text preprocessing options
+            col1, col2 = st.columns(2)
             
-            with preproc_col1:
-                remove_stopwords = st.checkbox("Remove stopwords", value=True, key="large_stopwords")
-                perform_stemming = st.checkbox("Perform stemming", value=not default_lemma, key="large_stemming")
+            with col1:
+                remove_stop = st.checkbox("Remove stopwords", value=True, key="large_remove_stopwords")
+                handle_negation = st.checkbox("Handle negations", value=True, key="large_handle_negations")
             
-            with preproc_col2:
-                perform_lemmatization = st.checkbox("Perform lemmatization", value=default_lemma, key="large_lemma")
-                handle_negations = st.checkbox("Handle negations", value=True, key="large_negation")
-            
-            # Model name
-            model_name = st.text_input(
-                "Model name",
-                value=f"Large_NB_{time.strftime('%Y%m%d_%H%M%S')}",
-                help="Name for the saved model"
-            )
+            with col2:
+                lemmatize = st.checkbox("Perform lemmatization", value=default_lemma, key="large_lemmatization")
+                stemming = st.checkbox("Perform stemming", value=False, 
+                                    disabled=lemmatize,
+                                    key="large_stemming",
+                                    help="Not used if lemmatization is enabled.")
             
             # Process button
             if st.button("Process and Train Model", key="process_large_file"):
@@ -1331,72 +1359,305 @@ def main():
                     progress_bar.progress(progress)
                     status_text.text(message)
                 
+                # Apply emergency mode overrides if needed for extremely large files
+                if emergency_mode:
+                    status_text.text("Emergency mode active: Using minimal settings for very large file...")
+                    # Force minimal settings
+                    sample_size = min(sample_size, 5)  # No more than 5% sample
+                    n_features = min(n_features, 2**16)  # Minimal features
+                    chunk_size = min(chunk_size, 10000)  # Small chunks
+                    remove_stop = True
+                    lemmatize = False
+                    stemming = False
+                    handle_negation = False  # Disable negation handling for speed
+                    
                 # Verify that the system has enough RAM
                 try:
                     import psutil
                     available_ram = psutil.virtual_memory().available / (1024 * 1024)
                     if available_ram < file_size_mb * 2 and file_size_mb > 100:
                         st.warning(f"⚠️ Available RAM ({available_ram:.0f}MB) may be insufficient for processing "
-                                f"a {file_size_mb:.0f}MB file. Consider reducing chunk size or features.")
+                                f"a {file_size_mb:.0f}MB file. Using Ultra Optimization mode is recommended.")
+                        
+                        # If memory is really tight, force ultra mode
+                        if available_ram < file_size_mb and not ultra_mode:
+                            st.warning("🚨 Memory is extremely limited. Automatically enabling Ultra Optimization mode.")
+                            ultra_mode = True
+                            use_sample = True
+                            sample_size = 10  # Use a smaller sample
+                            remove_stop = True
+                            lemmatize = False
+                            
+                            # Reduce features and increase chunk size
+                            n_features = min(n_features, 2**17)
+                            chunk_size = max(chunk_size, 50000)
                 except ImportError:
                     pass  # Skip RAM check if psutil is not available
                 
-                try:
-                    # Process the file in chunks
-                    model, vectorizer, metrics = process_large_file(
-                        file_path=file_path,
-                        text_column=selected_text_col,
-                        sentiment_column=selected_sentiment_col,
-                        chunksize=chunk_size,
-                        test_size=test_split,
-                        remove_stopwords=remove_stopwords,
-                        perform_stemming=perform_stemming,
-                        perform_lemmatization=perform_lemmatization,
-                        handle_negations=handle_negations,
-                        n_features=n_features,
-                        callback=progress_callback
-                    )
+                # Create a retry mechanism
+                max_retries = 3
+                for retry_count in range(max_retries):
+                    try:
+                        # Apply sampling if requested or in ultra mode
+                        if (use_sample and 'sample_size' in locals()) or ultra_mode:
+                            # Create a sampled version of the file
+                            status_text.text(f"Creating a {sample_size}% sample of the dataset...")
+                            
+                            # MEMORY EFFICIENT APPROACH: Don't count lines first, sample as we go
+                            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
+                            temp_file_path = temp_file.name
+                            temp_file.close()
+                            
+                            # Sample probability (keep header + sample_size% of data rows)
+                            keep_prob = sample_size / 100.0
+                            
+                            try:
+                                # Read and write in a streaming fashion with minimal memory usage
+                                with open(file_path, 'r', encoding='utf-8', errors='ignore') as input_file, \
+                                     open(temp_file_path, 'w', encoding='utf-8', newline='') as output_file:
+                                    
+                                    # Always keep the header
+                                    header = input_file.readline()
+                                    output_file.write(header)
+                                    
+                                    # Track progress
+                                    lines_read = 0
+                                    lines_kept = 1  # Start at 1 to count the header
+                                    
+                                    # Sample data rows with reservoir sampling
+                                    for line in input_file:
+                                        lines_read += 1
+                                        
+                                        # Update status every 100,000 lines
+                                        if lines_read % 100000 == 0:
+                                            status_text.text(f"Sampling dataset: processed {lines_read:,} lines, kept {lines_kept:,} lines...")
+                                        
+                                        # Keep line with probability = keep_prob
+                                        if random.random() < keep_prob:
+                                            output_file.write(line)
+                                            lines_kept += 1
+                                
+                                status_text.text(f"Created sample with {lines_kept:,} lines from {lines_read+1:,} total. Starting processing...")
+                                original_file_path = file_path
+                                file_path = temp_file_path
+                                
+                            except Exception as e:
+                                status_text.text(f"Error during sampling: {str(e)}")
+                                # If sampling fails, process the whole file
+                                if 'temp_file_path' in locals():
+                                    try:
+                                        os.unlink(temp_file_path)
+                                    except:
+                                        pass
+                                
+                                # Fall back to a super tiny sample with pandas
+                                status_text.text("Sampling failed. Using alternate method...")
+                                
+                                try:
+                                    # Try reading just a very small number of rows to reduce memory usage
+                                    tiny_sample = pd.read_csv(file_path, nrows=5)
+                                    # Get column names
+                                    headers = tiny_sample.columns.tolist()
+                                    
+                                    # Create a very small sample file with just the headers and 1000 random rows
+                                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
+                                    temp_file_path = temp_file.name
+                                    temp_file.close()
+                                    
+                                    # Write headers
+                                    with open(temp_file_path, 'w', encoding='utf-8', newline='') as output_file:
+                                        output_file.write(','.join(headers) + '\n')
+                                    
+                                    # Append a small number of random rows (fast method)
+                                    total_lines = sum(1 for _ in open(file_path, 'r', encoding='utf-8', errors='ignore'))
+                                    num_lines_to_sample = min(1000, int(total_lines * 0.01))  # 1% or 1000 lines, whichever is smaller
+                                    line_indices = sorted(random.sample(range(1, total_lines), num_lines_to_sample))
+                                    
+                                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as input_file, \
+                                         open(temp_file_path, 'a', encoding='utf-8', newline='') as output_file:
+                                        for i, line in enumerate(input_file):
+                                            if i == 0:  # Skip header, we already wrote it
+                                                continue
+                                            if i in line_indices:
+                                                output_file.write(line)
+                                    
+                                    status_text.text(f"Created emergency sample with {num_lines_to_sample} lines. Starting processing...")
+                                    original_file_path = file_path
+                                    file_path = temp_file_path
+                                    
+                                except Exception as inner_e:
+                                    status_text.text(f"Emergency sampling also failed: {str(inner_e)}")
+                                    st.error("Could not create sample. File may be corrupted or too large.")
+                                    return
+                        
+                        # Process the file
+                        model, vectorizer, metrics = process_large_file(
+                            file_path,
+                            text_column=selected_text_col,
+                            sentiment_column=selected_sentiment_col,
+                            chunksize=chunk_size,
+                            test_size=0.2,
+                            remove_stopwords=remove_stop,
+                            perform_stemming=stemming,
+                            perform_lemmatization=lemmatize,
+                            handle_negations=handle_negation,
+                            n_features=n_features,
+                            callback=progress_callback
+                        )
+                        
+                        # Clean up the temporary file if sampling was used
+                        if (use_sample or ultra_mode or emergency_mode) and 'temp_file_path' in locals():
+                            import os
+                            try:
+                                os.unlink(temp_file_path)
+                            except:
+                                pass
+                            
+                            # Restore original file path
+                            if 'original_file_path' in locals():
+                                file_path = original_file_path
+                        
+                        # Processing succeeded, break out of retry loop
+                        break
+                        
+                    except MemoryError as e:
+                        # If we run out of memory, retry with more aggressive settings
+                        if retry_count < max_retries - 1:
+                            status_text.text(f"Memory error occurred. Retrying with more aggressive optimization (attempt {retry_count+2}/{max_retries})...")
+                            
+                            # Force more aggressive settings
+                            lemmatize = False
+                            n_features = max(2**16, n_features // 2)  # Reduce features
+                            
+                            # If not already using sampling, enable it
+                            if not use_sample and not ultra_mode:
+                                use_sample = True
+                                sample_size = 20
+                            # If already sampling, reduce the sample size
+                            elif sample_size > 10:
+                                sample_size = max(5, sample_size // 2)
+                                
+                            # Adjust chunk size - if memory error, smaller chunks might help
+                            chunk_size = min(chunk_size, 20000)
+                            
+                            # Force garbage collection
+                            import gc
+                            gc.collect()
+                            
+                            # Wait a moment for memory to free up
+                            import time
+                            time.sleep(2)
+                        else:
+                            st.error(f"Memory error after {max_retries} attempts. Unable to process this file with current memory.")
+                            st.info("Try using a smaller sample size (5-10%) or splitting the file into smaller parts.")
+                            return
+                    except Exception as e:
+                        # Handle other errors
+                        st.error(f"Error processing file: {str(e)}")
+                        if retry_count < max_retries - 1:
+                            status_text.text(f"Error occurred. Retrying with different settings (attempt {retry_count+2}/{max_retries})...")
+                            
+                            # Try with simplified settings
+                            lemmatize = False
+                            stemming = False
+                            
+                            # Force garbage collection
+                            import gc
+                            gc.collect()
+                        else:
+                            st.error(f"Failed after {max_retries} attempts. Try using a smaller sample or file.")
+                            return
+                
+                # Save the model
+                if 'model' in locals() and 'metrics' in locals() and metrics["accuracy"] > 0:
+                    # Format current date and time for model name
+                    from datetime import datetime
+                    date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    model_name = f"chunked_model_{date_str}"
+                    model_dir = os.path.join("models", model_name)
                     
-                    # Save the model
-                    model_dir = save_chunked_model(model, vectorizer, metrics, model_name)
+                    if not os.path.exists(model_dir):
+                        os.makedirs(model_dir)
                     
-                    # Store model info in session state
-                    if 'chunked_models' not in st.session_state:
-                        st.session_state['chunked_models'] = {}
+                    # Save model, vectorizer and metrics
+                    joblib.dump(model, os.path.join(model_dir, "model.joblib"))
+                    joblib.dump(vectorizer, os.path.join(model_dir, "vectorizer.joblib"))
+                    joblib.dump(metrics, os.path.join(model_dir, "metrics.joblib"))
                     
-                    st.session_state['chunked_models'][model_name] = {
-                        'model': model,
-                        'vectorizer': vectorizer,
-                        'metrics': metrics,
-                        'path': model_dir
+                    # Save additional info
+                    info = {
+                        "date": date_str,
+                        "file_name": large_file_name,
+                        "file_size_mb": file_size_mb,
+                        "text_column": selected_text_col,
+                        "sentiment_column": selected_sentiment_col,
+                        "preprocessing": {
+                            "remove_stopwords": remove_stop,
+                            "perform_stemming": stemming,
+                            "perform_lemmatization": lemmatize,
+                            "handle_negations": handle_negation,
+                        },
+                        "n_features": n_features,
+                        "fast_mode": fast_mode,
+                        "ultra_mode": ultra_mode if 'ultra_mode' in locals() else False,
+                        "sample_used": use_sample if 'use_sample' in locals() else False,
+                        "sample_size": sample_size if 'sample_size' in locals() else None,
                     }
+                    joblib.dump(info, os.path.join(model_dir, "info.joblib"))
                     
-                    # Show success message
-                    st.success(f"Model trained and saved successfully!")
+                    # Show results
+                    st.success(f"Model trained and saved successfully to {model_dir}")
                     
-                    # Show metrics
-                    st.subheader("Model Performance Metrics")
-                    col1, col2 = st.columns(2)
+                    # Display metrics
+                    st.subheader("Model Performance")
+                    st.write(f"Accuracy: {metrics['accuracy']:.4f}")
+                    st.write(f"Precision: {metrics['precision']:.4f}")
+                    st.write(f"Recall: {metrics['recall']:.4f}")
+                    st.write(f"F1 Score: {metrics['f1_score']:.4f}")
                     
-                    with col1:
-                        st.metric("Accuracy", f"{metrics['accuracy']:.4f}")
-                        st.metric("Precision", f"{metrics['precision']:.4f}")
-                    
-                    with col2:
-                        st.metric("Recall", f"{metrics['recall']:.4f}")
-                        st.metric("F1 Score", f"{metrics['f1_score']:.4f}")
-                    
-                    # Display confusion matrix
-                    st.subheader("Confusion Matrix")
-                    conf_matrix = np.array(metrics['confusion_matrix'])
-                    labels = metrics.get('classes', ['positive', 'negative'])
-                    fig = plot_confusion_matrix(conf_matrix, labels)
-                    st.pyplot(fig)
-                    
-                except Exception as e:
-                    st.error(f"Error processing file: {str(e)}")
-                    import traceback
-                    st.code(traceback.format_exc())
+                    # Display confusion matrix without requiring seaborn
+                    try:
+                        # Try to use matplotlib directly without seaborn
+                        import matplotlib.pyplot as plt
+                        
+                        conf_matrix = np.array(metrics['confusion_matrix'])
+                        fig, ax = plt.subplots(figsize=(5, 4))
+                        
+                        # Create heatmap manually
+                        im = ax.imshow(conf_matrix, interpolation='nearest', cmap='Blues')
+                        
+                        # Add colorbar
+                        cbar = ax.figure.colorbar(im, ax=ax)
+                        
+                        # Show all ticks and label them
+                        num_classes = len(conf_matrix)
+                        classes = list(range(num_classes))
+                        
+                        # Label axes
+                        ax.set(xticks=np.arange(num_classes),
+                              yticks=np.arange(num_classes),
+                              xticklabels=classes,
+                              yticklabels=classes,
+                              title='Confusion Matrix',
+                              ylabel='True label',
+                              xlabel='Predicted label')
+                        
+                        # Loop over data dimensions and create text annotations
+                        for i in range(num_classes):
+                            for j in range(num_classes):
+                                ax.text(j, i, format(conf_matrix[i, j], 'd'),
+                                        ha="center", va="center",
+                                        color="white" if conf_matrix[i, j] > conf_matrix.max() / 2 else "black")
+                        
+                        plt.tight_layout()
+                        st.pyplot(fig)
+                    except Exception as viz_error:
+                        # If visualization fails, show the matrix as a table
+                        st.warning(f"Could not create visualization: {str(viz_error)}")
+                        st.write("Confusion Matrix (Table Format):")
+                        st.write(pd.DataFrame(metrics['confusion_matrix']))
+                else:
+                    st.warning("Unable to evaluate model performance. This may be due to insufficient data or incorrect column selection.")
             
             # Batch prediction section
             st.subheader("Batch Prediction with Trained Models")

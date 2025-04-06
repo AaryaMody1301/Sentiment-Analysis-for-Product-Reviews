@@ -14,3 +14,413 @@
 2025-04-06 14:49:53,120 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'Id': 'Id_1'}
 2025-04-06 14:52:13,179 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'col': 'col_2', 'unique': 'unique_4'}
 2025-04-06 14:52:13,181 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'Id': 'Id_1'}
+2025-04-06 15:32:26,256 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:32:26,260 - sentiment_analysis - INFO - System check: 4.2GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:32:26,260 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:32:26,260 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:32:26,260 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:32:26,444 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:32:32,266 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'col': 'col_2', 'unique': 'unique_4'}
+2025-04-06 15:32:32,267 - sentiment_analysis - WARNING - Duplicate column names found and renamed: {'Id': 'Id_1'}
+2025-04-06 15:32:49,527 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:32:49,532 - sentiment_analysis - INFO - System check: 4.1GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:32:49,533 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:32:49,533 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:32:49,533 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:32:49,713 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:33:00,792 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:33:00,796 - sentiment_analysis - INFO - System check: 4.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:33:00,797 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:00,797 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:33:00,797 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:04,095 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:33:07,003 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:33:07,007 - sentiment_analysis - INFO - System check: 4.0GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:33:07,008 - sentiment_analysis - WARNING - Low memory warning: Only 4.0GB RAM available
+2025-04-06 15:33:07,009 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:07,010 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:33:07,010 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:09,081 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:33:09,085 - sentiment_analysis - INFO - System check: 3.7GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:33:09,086 - sentiment_analysis - WARNING - Low memory warning: Only 3.7GB RAM available
+2025-04-06 15:33:09,086 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:09,087 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:33:09,087 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:14,415 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:33:14,421 - sentiment_analysis - INFO - System check: 3.9GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:33:14,439 - sentiment_analysis - WARNING - Low memory warning: Only 3.9GB RAM available
+2025-04-06 15:33:14,452 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:14,453 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:33:14,516 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:16,016 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:33:16,020 - sentiment_analysis - INFO - System check: 3.8GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:33:16,021 - sentiment_analysis - WARNING - Low memory warning: Only 3.8GB RAM available
+2025-04-06 15:33:16,021 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:16,022 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:33:16,022 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:18,455 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:33:18,459 - sentiment_analysis - INFO - System check: 3.5GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:33:18,460 - sentiment_analysis - WARNING - Low memory warning: Only 3.5GB RAM available
+2025-04-06 15:33:18,461 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:18,461 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:33:18,461 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:25,016 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:33:52,378 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:33:52,383 - sentiment_analysis - INFO - System check: 4.1GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:33:52,384 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:33:52,385 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:33:52,385 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:36:26,695 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:36:26,700 - sentiment_analysis - INFO - System check: 3.6GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:36:26,701 - sentiment_analysis - WARNING - Low memory warning: Only 3.6GB RAM available
+2025-04-06 15:36:26,709 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:36:26,710 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:36:26,711 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:36:29,667 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:36:31,182 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:36:31,205 - sentiment_analysis - INFO - System check: 3.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:36:31,229 - sentiment_analysis - WARNING - Low memory warning: Only 3.4GB RAM available
+2025-04-06 15:36:31,305 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:36:31,341 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:36:31,341 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:37:41,738 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:37:41,753 - sentiment_analysis - INFO - System check: 3.6GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:37:41,756 - sentiment_analysis - WARNING - Low memory warning: Only 3.6GB RAM available
+2025-04-06 15:37:41,757 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:37:41,760 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:37:41,761 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:37:42,411 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:37:42,440 - sentiment_analysis - INFO - System check: 3.6GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:37:42,442 - sentiment_analysis - WARNING - Low memory warning: Only 3.6GB RAM available
+2025-04-06 15:37:42,443 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:37:42,444 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:37:42,444 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:37:51,618 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:37:53,049 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:37:53,053 - sentiment_analysis - INFO - System check: 3.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:37:53,053 - sentiment_analysis - WARNING - Low memory warning: Only 3.4GB RAM available
+2025-04-06 15:37:53,054 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:37:53,054 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:37:53,054 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:41:51,829 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:41:51,833 - sentiment_analysis - INFO - System check: 3.8GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:41:51,834 - sentiment_analysis - WARNING - Low memory warning: Only 3.8GB RAM available
+2025-04-06 15:41:51,834 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:41:51,834 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:41:51,834 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:41:57,802 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:41:57,807 - sentiment_analysis - INFO - System check: 3.8GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:41:57,808 - sentiment_analysis - WARNING - Low memory warning: Only 3.8GB RAM available
+2025-04-06 15:41:57,809 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:41:57,809 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:41:57,810 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:42:51,624 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:42:51,628 - sentiment_analysis - INFO - System check: 3.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:42:51,629 - sentiment_analysis - WARNING - Low memory warning: Only 3.4GB RAM available
+2025-04-06 15:42:51,629 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:42:51,629 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:42:51,629 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:42:51,804 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:43:02,785 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:43:02,789 - sentiment_analysis - INFO - System check: 3.8GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:43:02,789 - sentiment_analysis - WARNING - Low memory warning: Only 3.8GB RAM available
+2025-04-06 15:43:02,789 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:43:02,790 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:43:02,790 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:43:05,207 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:43:11,111 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:43:11,115 - sentiment_analysis - INFO - System check: 3.5GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:43:11,115 - sentiment_analysis - WARNING - Low memory warning: Only 3.5GB RAM available
+2025-04-06 15:43:11,116 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:43:11,116 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:43:11,117 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:43:12,697 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:43:12,701 - sentiment_analysis - INFO - System check: 3.3GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:43:12,702 - sentiment_analysis - WARNING - Low memory warning: Only 3.3GB RAM available
+2025-04-06 15:43:12,702 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:43:12,703 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:43:12,703 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:43:15,907 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:43:28,861 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:43:28,866 - sentiment_analysis - INFO - System check: 3.5GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:43:28,866 - sentiment_analysis - WARNING - Low memory warning: Only 3.5GB RAM available
+2025-04-06 15:43:28,866 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:43:28,867 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:43:28,867 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:23,926 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:45:23,930 - sentiment_analysis - INFO - System check: 3.5GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:45:23,930 - sentiment_analysis - WARNING - Low memory warning: Only 3.5GB RAM available
+2025-04-06 15:45:23,931 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:23,931 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:45:23,931 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:24,103 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:45:26,950 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:45:26,954 - sentiment_analysis - INFO - System check: 3.5GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:45:26,955 - sentiment_analysis - WARNING - Low memory warning: Only 3.5GB RAM available
+2025-04-06 15:45:26,955 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:26,955 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:45:26,955 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:31,451 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:45:34,795 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:45:34,799 - sentiment_analysis - INFO - System check: 3.1GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:45:34,800 - sentiment_analysis - WARNING - Low memory warning: Only 3.1GB RAM available
+2025-04-06 15:45:34,800 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:34,801 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:45:34,801 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:36,737 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:45:36,741 - sentiment_analysis - INFO - System check: 3.1GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:45:36,742 - sentiment_analysis - WARNING - Low memory warning: Only 3.1GB RAM available
+2025-04-06 15:45:36,742 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:36,743 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:45:36,743 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:42,971 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:45:44,838 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:45:44,853 - sentiment_analysis - INFO - System check: 3.3GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:45:44,854 - sentiment_analysis - WARNING - Low memory warning: Only 3.3GB RAM available
+2025-04-06 15:45:44,855 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:44,855 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:45:44,856 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:49,531 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:45:57,387 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:45:57,394 - sentiment_analysis - INFO - System check: 3.3GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:45:57,395 - sentiment_analysis - WARNING - Low memory warning: Only 3.3GB RAM available
+2025-04-06 15:45:57,396 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:57,396 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:45:57,397 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:58,172 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:45:58,177 - sentiment_analysis - INFO - System check: 3.2GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:45:58,179 - sentiment_analysis - WARNING - Low memory warning: Only 3.2GB RAM available
+2025-04-06 15:45:58,182 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:45:58,183 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:45:58,183 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:46:03,613 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:46:03,618 - sentiment_analysis - INFO - System check: 2.9GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:46:03,619 - sentiment_analysis - WARNING - Low memory warning: Only 2.9GB RAM available
+2025-04-06 15:46:03,619 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:46:03,620 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:46:03,620 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:46:08,617 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:46:11,834 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:46:11,841 - sentiment_analysis - INFO - System check: 3.3GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:46:11,842 - sentiment_analysis - WARNING - Low memory warning: Only 3.3GB RAM available
+2025-04-06 15:46:11,843 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:46:11,844 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:46:11,844 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:48:54,706 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:48:54,729 - sentiment_analysis - INFO - System check: 3.3GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:48:54,756 - sentiment_analysis - WARNING - Low memory warning: Only 3.3GB RAM available
+2025-04-06 15:48:54,843 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:48:54,891 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:48:54,907 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:48:55,595 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:48:58,999 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:48:59,040 - sentiment_analysis - INFO - System check: 3.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:48:59,066 - sentiment_analysis - WARNING - Low memory warning: Only 3.4GB RAM available
+2025-04-06 15:48:59,081 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:48:59,100 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:48:59,114 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:49:14,136 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:49:21,847 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:49:21,865 - sentiment_analysis - INFO - System check: 3.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:49:21,891 - sentiment_analysis - WARNING - Low memory warning: Only 3.4GB RAM available
+2025-04-06 15:49:21,939 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:49:21,956 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:49:21,960 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:49:22,365 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:49:27,004 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:49:27,029 - sentiment_analysis - INFO - System check: 3.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:49:27,037 - sentiment_analysis - WARNING - Low memory warning: Only 3.4GB RAM available
+2025-04-06 15:49:27,037 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:49:27,038 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:49:27,056 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:49:27,306 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:49:27,832 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:49:27,850 - sentiment_analysis - INFO - System check: 3.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:49:27,873 - sentiment_analysis - WARNING - Low memory warning: Only 3.4GB RAM available
+2025-04-06 15:49:27,891 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:49:27,920 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:49:27,937 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:49:28,190 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:49:28,790 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:49:28,812 - sentiment_analysis - INFO - System check: 3.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:49:28,853 - sentiment_analysis - WARNING - Low memory warning: Only 3.4GB RAM available
+2025-04-06 15:49:28,870 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:49:28,886 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:49:28,902 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:49:29,223 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:49:31,223 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:49:31,249 - sentiment_analysis - INFO - System check: 3.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:49:31,295 - sentiment_analysis - WARNING - Low memory warning: Only 3.4GB RAM available
+2025-04-06 15:49:31,305 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:49:31,327 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:49:31,354 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:49:31,582 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:53:35,011 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:53:35,016 - sentiment_analysis - INFO - System check: 2.8GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:53:35,018 - sentiment_analysis - WARNING - Low memory warning: Only 2.8GB RAM available
+2025-04-06 15:53:35,020 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:53:35,021 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:53:35,021 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:53:35,207 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:53:45,510 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:53:45,514 - sentiment_analysis - INFO - System check: 4.0GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:53:45,515 - sentiment_analysis - WARNING - Low memory warning: Only 4.0GB RAM available
+2025-04-06 15:53:45,515 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:53:45,515 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:53:45,516 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:53:49,739 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:53:54,179 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:53:54,185 - sentiment_analysis - INFO - System check: 3.6GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:53:54,185 - sentiment_analysis - WARNING - Low memory warning: Only 3.6GB RAM available
+2025-04-06 15:53:54,186 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:53:54,186 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:53:54,187 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:53:56,548 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:53:56,553 - sentiment_analysis - INFO - System check: 3.3GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:53:56,554 - sentiment_analysis - WARNING - Low memory warning: Only 3.3GB RAM available
+2025-04-06 15:53:56,554 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:53:56,555 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:53:56,555 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:54:01,565 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:54:12,131 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:54:12,136 - sentiment_analysis - INFO - System check: 3.6GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:54:12,137 - sentiment_analysis - WARNING - Low memory warning: Only 3.6GB RAM available
+2025-04-06 15:54:12,138 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:54:12,138 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:54:12,138 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:54:16,301 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:54:19,313 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:54:19,319 - sentiment_analysis - INFO - System check: 3.5GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:54:19,320 - sentiment_analysis - WARNING - Low memory warning: Only 3.5GB RAM available
+2025-04-06 15:54:19,320 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:54:19,321 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:54:19,321 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:54:23,460 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:54:25,951 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:54:25,957 - sentiment_analysis - INFO - System check: 3.5GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:54:25,958 - sentiment_analysis - WARNING - Low memory warning: Only 3.5GB RAM available
+2025-04-06 15:54:25,958 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:54:25,959 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:54:25,959 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:54:29,898 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:54:32,707 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:54:32,712 - sentiment_analysis - INFO - System check: 3.5GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:54:32,713 - sentiment_analysis - WARNING - Low memory warning: Only 3.5GB RAM available
+2025-04-06 15:54:32,714 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:54:32,714 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:54:32,714 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:54:37,293 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:54:45,447 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:54:45,451 - sentiment_analysis - INFO - System check: 3.5GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:54:45,452 - sentiment_analysis - WARNING - Low memory warning: Only 3.5GB RAM available
+2025-04-06 15:54:45,452 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:54:45,453 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:54:45,454 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:58:36,039 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:58:36,044 - sentiment_analysis - INFO - System check: 2.6GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:58:36,044 - sentiment_analysis - WARNING - Low memory warning: Only 2.6GB RAM available
+2025-04-06 15:58:36,044 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:58:36,044 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:58:36,045 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:58:36,234 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:58:39,154 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:58:39,164 - sentiment_analysis - INFO - System check: 2.6GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:58:39,164 - sentiment_analysis - WARNING - Low memory warning: Only 2.6GB RAM available
+2025-04-06 15:58:39,164 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:58:39,165 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:58:39,165 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:58:43,573 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:59:11,379 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:59:11,384 - sentiment_analysis - INFO - System check: 2.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:59:11,385 - sentiment_analysis - WARNING - Low memory warning: Only 2.4GB RAM available
+2025-04-06 15:59:11,386 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:59:11,386 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:59:11,387 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:59:12,034 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:59:12,039 - sentiment_analysis - INFO - System check: 2.3GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:59:12,040 - sentiment_analysis - WARNING - Low memory warning: Only 2.3GB RAM available
+2025-04-06 15:59:12,041 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:59:12,041 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:59:12,041 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 15:59:18,599 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 15:59:23,225 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 15:59:23,231 - sentiment_analysis - INFO - System check: 2.1GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 15:59:23,231 - sentiment_analysis - WARNING - Low memory warning: Only 2.1GB RAM available
+2025-04-06 15:59:23,232 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 15:59:23,232 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 15:59:23,233 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:01:11,607 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:01:11,611 - sentiment_analysis - INFO - System check: 2.3GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:01:11,612 - sentiment_analysis - WARNING - Low memory warning: Only 2.3GB RAM available
+2025-04-06 16:01:11,612 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:01:11,612 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:01:11,612 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:01:53,207 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:01:53,213 - sentiment_analysis - INFO - System check: 2.2GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:01:53,213 - sentiment_analysis - WARNING - Low memory warning: Only 2.2GB RAM available
+2025-04-06 16:01:53,214 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:01:53,214 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:01:53,215 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:01:54,666 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:01:54,671 - sentiment_analysis - INFO - System check: 2.1GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:01:54,672 - sentiment_analysis - WARNING - Low memory warning: Only 2.1GB RAM available
+2025-04-06 16:01:54,673 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:01:54,674 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:01:54,674 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:16,049 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:02:16,053 - sentiment_analysis - INFO - System check: 1.7GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:02:16,054 - sentiment_analysis - WARNING - Low memory warning: Only 1.7GB RAM available
+2025-04-06 16:02:16,054 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:16,054 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:02:16,054 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:16,233 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 16:02:29,524 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:02:29,529 - sentiment_analysis - INFO - System check: 4.0GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:02:29,529 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:29,529 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:02:29,529 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:33,016 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 16:02:36,708 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:02:36,713 - sentiment_analysis - INFO - System check: 3.7GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:02:36,713 - sentiment_analysis - WARNING - Low memory warning: Only 3.7GB RAM available
+2025-04-06 16:02:36,714 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:36,714 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:02:36,714 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:38,837 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:02:38,842 - sentiment_analysis - INFO - System check: 3.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:02:38,843 - sentiment_analysis - WARNING - Low memory warning: Only 3.4GB RAM available
+2025-04-06 16:02:38,843 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:38,844 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:02:38,844 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:41,386 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:02:41,393 - sentiment_analysis - INFO - System check: 3.4GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:02:41,396 - sentiment_analysis - WARNING - Low memory warning: Only 3.4GB RAM available
+2025-04-06 16:02:41,397 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:41,397 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:02:41,397 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:46,530 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:02:46,535 - sentiment_analysis - INFO - System check: 3.3GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:02:46,535 - sentiment_analysis - WARNING - Low memory warning: Only 3.3GB RAM available
+2025-04-06 16:02:46,536 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:46,537 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:02:46,537 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:50,888 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 16:02:58,045 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:02:58,050 - sentiment_analysis - INFO - System check: 3.7GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:02:58,051 - sentiment_analysis - WARNING - Low memory warning: Only 3.7GB RAM available
+2025-04-06 16:02:58,052 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:58,052 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:02:58,052 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:59,053 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:02:59,058 - sentiment_analysis - INFO - System check: 3.6GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:02:59,060 - sentiment_analysis - WARNING - Low memory warning: Only 3.6GB RAM available
+2025-04-06 16:02:59,061 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:02:59,061 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:02:59,061 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)
+2025-04-06 16:03:05,205 - sentiment_analysis - INFO - Sentiment Analysis application ended
+2025-04-06 16:03:08,139 - sentiment_analysis - INFO - Starting Sentiment Analysis application
+2025-04-06 16:03:08,143 - sentiment_analysis - INFO - System check: 3.5GB RAM available out of 15.6GB total, 14 CPU cores
+2025-04-06 16:03:08,143 - sentiment_analysis - WARNING - Low memory warning: Only 3.5GB RAM available
+2025-04-06 16:03:08,144 - sentiment_analysis - INFO - Found dataset: Product Reviews.csv (287.0MB)
+2025-04-06 16:03:08,144 - sentiment_analysis - INFO - Found dataset: sample_reviews.csv (0.0MB)
+2025-04-06 16:03:08,144 - sentiment_analysis - INFO - Large dataset detected: Product Reviews.csv (287.0MB)

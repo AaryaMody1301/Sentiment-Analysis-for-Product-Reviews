@@ -8,4 +8,6 @@ wordcloud==1.9.4
 altair==5.2.0
 joblib==1.4.2
 tqdm==4.66.1
-psutil==5.9.6 
+psutil==5.9.6
+spacy==3.7.2
+scipy==1.12.0 

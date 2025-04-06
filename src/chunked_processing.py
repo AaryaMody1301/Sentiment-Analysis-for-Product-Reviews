@@ -9,6 +9,10 @@ import re
 import time
 import joblib
 from tqdm import tqdm
+import string
+from nltk import word_tokenize
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
 
 from src.data_loading import preprocess_text, normalize_sentiment_labels
 
@@ -149,14 +153,29 @@ def process_large_file(file_path, text_column=None, sentiment_column=None,
     try:
         import psutil
         initial_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
+        is_memory_monitoring = True
     except ImportError:
         initial_memory = 0
+        is_memory_monitoring = False
+    
+    # EXTREME OPTIMIZATION: For very large files (>200MB), use more aggressive settings
+    extreme_optimization = file_size_mb > 200
+    if extreme_optimization and callback:
+        callback(0, f"Large file detected ({file_size_mb:.1f}MB). Using extreme optimization mode.")
+        # Force reduced settings for very large files
+        if perform_lemmatization:
+            callback(0, "Disabling lemmatization for better performance with large file.")
+            perform_lemmatization = False
+        # Increase chunk size for faster processing but watch memory
+        max_memory_percent = 0.6  # Use at most 60% of available RAM
     
     if callback:
         callback(0, f"Starting processing of {file_size_mb:.1f}MB file. Initial memory: {initial_memory:.1f}MB")
     
     # First, detect columns if not provided using a sample
-    sample_chunk = pd.read_csv(file_path, nrows=min(10000, chunksize))
+    # Use smaller sample for very large files
+    sample_size = min(1000, chunksize) if extreme_optimization else min(5000, chunksize)
+    sample_chunk = pd.read_csv(file_path, nrows=sample_size)
     first_chunk_size = len(sample_chunk)
     
     if text_column is None or sentiment_column is None:
@@ -171,30 +190,130 @@ def process_large_file(file_path, text_column=None, sentiment_column=None,
     avg_row_size = os.path.getsize(file_path) / first_chunk_size if first_chunk_size > 0 else 0
     estimated_total_rows = int(os.path.getsize(file_path) / avg_row_size) if avg_row_size > 0 else 0
     
-    # Scan the entire file to find all possible sentiment classes (important to prevent errors)
+    # PERFORMANCE OPTIMIZATION: Scan a subset of the file rather than entire file to identify sentiment classes
+    # For large files, scan even fewer chunks and focus on beginning, middle and end
     all_sentiment_classes = set()
     scan_chunks = 0
+    max_scan_chunks = 5 if extreme_optimization else 10  # Limit scanning to fewer chunks for large files
     
     if callback:
-        callback(0.05, "Scanning file to identify all sentiment classes...")
+        callback(0.05, "Scanning sample of file to identify sentiment classes...")
     
-    for chunk in pd.read_csv(file_path, chunksize=chunksize):
-        scan_chunks += 1
-        if callback and scan_chunks % 5 == 0:
-            callback(0.05, f"Scanning for classes... (chunk {scan_chunks})")
+    # For very large files, we'll scan the beginning, middle, and end instead of sequential chunks
+    if extreme_optimization:
+        # Get file size and estimate total chunks
+        total_chunks = estimated_total_rows // chunksize
         
-        # Skip if sentiment column doesn't exist
-        if sentiment_column not in chunk.columns:
-            continue
+        # Positions to sample: beginning, 25%, 50%, 75%, end
+        sample_positions = [
+            0,  # Beginning 
+            max(1, total_chunks // 4),  # ~25%
+            max(1, total_chunks // 2),  # ~50%
+            max(1, (total_chunks * 3) // 4),  # ~75%
+            max(1, total_chunks - 1)  # End
+        ]
+        
+        # Remove duplicates (in case total_chunks is small)
+        sample_positions = sorted(list(set(sample_positions)))
+        
+        for pos in sample_positions:
+            if callback:
+                callback(0.05, f"Scanning for classes at position {pos+1}/{total_chunks}...")
             
-        # Handle missing values
-        chunk = chunk.dropna(subset=[sentiment_column])
+            # Skip to the position
+            try:
+                # Calculate rows to skip
+                skip_rows = pos * chunksize
+                
+                # Read the chunk
+                scan_chunk = pd.read_csv(file_path, 
+                                       skiprows=range(1, skip_rows + 1) if skip_rows > 0 else None,
+                                       nrows=chunksize)
+                
+                # Check if sentiment column exists
+                if sentiment_column not in scan_chunk.columns:
+                    continue
+                
+                # Process the chunk
+                scan_chunk = scan_chunk.dropna(subset=[sentiment_column])
+                scan_chunk = normalize_sentiment_labels(scan_chunk, sentiment_column)
+                all_sentiment_classes.update(scan_chunk[sentiment_column].unique())
+                
+                scan_chunks += 1
+                
+                # If we have at least 2 classes, we can potentially stop scanning
+                if len(all_sentiment_classes) >= 2 and scan_chunks >= 3:
+                    break
+            except Exception as e:
+                if callback:
+                    callback(0.05, f"Error scanning at position {pos}: {str(e)}")
+    else:
+        # Original sequential scanning logic for smaller files
+        for chunk in pd.read_csv(file_path, chunksize=chunksize):
+            scan_chunks += 1
+            if callback and scan_chunks % 2 == 0:
+                callback(0.05, f"Scanning for classes... (chunk {scan_chunks})")
+            
+            # Skip if sentiment column doesn't exist
+            if sentiment_column not in chunk.columns:
+                continue
+                
+            # Handle missing values
+            chunk = chunk.dropna(subset=[sentiment_column])
+            
+            # Normalize sentiment labels
+            chunk = normalize_sentiment_labels(chunk, sentiment_column)
+            
+            # Add sentiment values to our set
+            all_sentiment_classes.update(chunk[sentiment_column].unique())
+            
+            # PERFORMANCE OPTIMIZATION: Stop scanning after max_scan_chunks
+            if scan_chunks >= max_scan_chunks:
+                break
+    
+    # If we have at least 2 classes, we can proceed, otherwise scan additional chunks
+    if len(all_sentiment_classes) < 2 and estimated_total_rows > max_scan_chunks * chunksize:
+        if callback:
+            callback(0.05, "Not enough classes found in sample, scanning additional chunks...")
         
-        # Normalize sentiment labels
-        chunk = normalize_sentiment_labels(chunk, sentiment_column)
+        # Scan a few more chunks at different positions
+        additional_positions = [
+            chunksize * max_scan_chunks,  # Right after our previous scan
+            estimated_total_rows // 2,    # Middle of file
+            max(0, estimated_total_rows - chunksize * 2)  # Near the end
+        ]
         
-        # Add sentiment values to our set
-        all_sentiment_classes.update(chunk[sentiment_column].unique())
+        for skip_rows in additional_positions:
+            if callback:
+                callback(0.05, f"Extended scanning at row {skip_rows}...")
+            
+            try:
+                # Skip to this position in the file
+                additional_chunk = pd.read_csv(
+                    file_path, 
+                    skiprows=range(1, skip_rows) if skip_rows > 0 else None,
+                    nrows=chunksize
+                )
+                
+                # Skip if sentiment column doesn't exist
+                if sentiment_column not in additional_chunk.columns:
+                    continue
+                    
+                # Handle missing values
+                additional_chunk = additional_chunk.dropna(subset=[sentiment_column])
+                
+                # Normalize sentiment labels
+                additional_chunk = normalize_sentiment_labels(additional_chunk, sentiment_column)
+                
+                # Add sentiment values to our set
+                all_sentiment_classes.update(additional_chunk[sentiment_column].unique())
+                
+                # If we have at least 2 classes, we can stop scanning
+                if len(all_sentiment_classes) >= 2:
+                    break
+            except Exception as e:
+                if callback:
+                    callback(0.05, f"Error during extended scanning: {str(e)}")
     
     # Convert to sorted list for consistent order
     all_sentiment_classes = sorted(list(all_sentiment_classes))
@@ -211,28 +330,153 @@ def process_large_file(file_path, text_column=None, sentiment_column=None,
     # Now initialize the model with knowledge of all possible classes
     model = MultinomialNB(alpha=1.5)
     
-    # Count chunks for progress
+    # Count chunks for progress tracking
     total_chunks = max(1, estimated_total_rows // chunksize)
     processed_chunks = 0
     processed_rows = 0
     
-    # These will store all test data for final evaluation
+    # These will store a sample of test data for final evaluation
+    # PERFORMANCE OPTIMIZATION: Limit test data size to reduce memory usage
+    max_test_samples = 5000 if extreme_optimization else 10000
     test_texts = []
     test_labels = []
     
     # First model fit flag
     is_first_fit = True
     
+    # PERFORMANCE OPTIMIZATION: Cached lemmatizer to avoid recreating for each text
+    lemmatizer = None
+    if perform_lemmatization:
+        lemmatizer = WordNetLemmatizer()
+    
+    # Define a batch preprocess function that uses vectorized operations where possible
+    def batch_preprocess(texts, lemmatizer_obj=None):
+        """Preprocess a batch of texts more efficiently"""
+        # Handle missing values and convert to strings
+        processed_texts = []
+        
+        for text in texts:
+            # Skip empty or missing values
+            if pd.isna(text) or not isinstance(text, str):
+                try:
+                    if not isinstance(text, str):
+                        text = str(text)
+                except:
+                    processed_texts.append("")
+                    continue
+            
+            # Handle empty strings
+            if not text.strip():
+                processed_texts.append("")
+                continue
+            
+            # Convert to lowercase
+            text = text.lower()
+            
+            # Handle negations before removing punctuation if requested
+            if handle_negations:
+                # Replace "not" followed by a word with "not_word"
+                text = re.sub(r'not\s+(\w+)', r'not_\1', text)
+                # Replace "n't" contractions
+                text = re.sub(r"n't\s+(\w+)", r'not_\1', text)
+                text = text.replace("n't", " not")
+            
+            # Remove punctuation, but keep the underscores used in negation handling
+            if handle_negations:
+                # Remove all punctuation except underscores
+                punct = string.punctuation.replace('_', '')
+                text = re.sub(f'[{re.escape(punct)}]', ' ', text)
+            else:
+                # Remove all punctuation
+                text = re.sub(f'[{re.escape(string.punctuation)}]', ' ', text)
+            
+            # Use proper tokenization with NLTK
+            tokens = word_tokenize(text)
+            
+            # Remove stopwords (but keep negation words if we're handling negations)
+            if remove_stopwords:
+                stop_words = set(stopwords.words('english'))
+                # If handling negations, keep "not" in the text
+                if handle_negations:
+                    stop_words.discard('not')
+                tokens = [token for token in tokens if token not in stop_words]
+            
+            # Lemmatization takes precedence over stemming if both are selected
+            if perform_lemmatization and lemmatizer_obj:
+                # Better lemmatization with POS tagging
+                lemmatized_tokens = []
+                for token in tokens:
+                    # Try lemmatizing as verb first, then as noun
+                    lemmatized_verb = lemmatizer_obj.lemmatize(token, pos='v')
+                    # If lemmatizing as verb changes the word, use that
+                    if lemmatized_verb != token:
+                        lemmatized_tokens.append(lemmatized_verb)
+                    else:
+                        # Otherwise use noun lemmatization (default)
+                        lemmatized_tokens.append(lemmatizer_obj.lemmatize(token))
+                tokens = lemmatized_tokens
+            
+            # Join tokens back into text
+            processed_texts.append(' '.join(tokens))
+        
+        return processed_texts
+    
+    # EXTREME OPTIMIZATION: Process a limited number of chunks for very large files
+    max_chunks_to_process = None
+    if extreme_optimization:
+        # For extremely large files, limit to processing around 20-30% of the file
+        # This significantly reduces processing time while still getting a good model
+        max_chunks_to_process = max(10, total_chunks // 4)
+        if callback:
+            callback(0.1, f"Extreme optimization: Will process {max_chunks_to_process} chunks out of {total_chunks} total")
+    
     # Process chunks
-    for i, chunk in enumerate(pd.read_csv(file_path, chunksize=chunksize)):
+    chunk_reader = pd.read_csv(file_path, chunksize=chunksize)
+    for i, chunk in enumerate(chunk_reader):
+        # For extreme optimization, process a subset of chunks distributed throughout the file
+        if extreme_optimization and max_chunks_to_process:
+            # Process first few chunks, middle chunks, and last few chunks
+            first_chunks = max_chunks_to_process // 3
+            last_chunks = max_chunks_to_process // 3
+            
+            if i > first_chunks and i < (total_chunks - last_chunks):
+                # Only process every Nth chunk in the middle of the file
+                stride = (total_chunks - first_chunks - last_chunks) // (max_chunks_to_process - first_chunks - last_chunks)
+                if stride > 1 and (i - first_chunks) % stride != 0:
+                    continue
+        
         chunk_start_time = time.time()
         processed_chunks += 1
         processed_rows += len(chunk)
         
         # Update progress more frequently for large files
         if callback:
-            progress = min(0.95, 0.1 + (processed_rows / max(processed_rows, estimated_total_rows)) * 0.85)
+            progress = min(0.95, 0.1 + (processed_chunks / max(max_chunks_to_process or total_chunks, total_chunks)) * 0.85)
             callback(progress, f"Processing chunk {processed_chunks}/{total_chunks} ({len(chunk):,} rows)")
+        
+        # Check available memory before processing this chunk
+        if is_memory_monitoring and extreme_optimization:
+            try:
+                current_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
+                available_memory = psutil.virtual_memory().available / (1024 * 1024)
+                total_memory = psutil.virtual_memory().total / (1024 * 1024)
+                
+                # If we're using too much memory, skip some chunks
+                memory_usage_percent = 1 - (available_memory / total_memory)
+                if memory_usage_percent > max_memory_percent:
+                    if callback:
+                        callback(progress, f"Memory usage high ({memory_usage_percent:.1%}), skipping some chunks...")
+                    
+                    # Skip the next few chunks to reduce memory pressure
+                    for _ in range(2):  # Skip 2 chunks
+                        try:
+                            next(chunk_reader)
+                            processed_chunks += 1
+                        except StopIteration:
+                            break
+            except Exception as e:
+                # If memory monitoring fails, continue anyway
+                pass
         
         # Ensure the required columns exist
         if text_column not in chunk.columns or sentiment_column not in chunk.columns:
@@ -254,21 +498,23 @@ def process_large_file(file_path, text_column=None, sentiment_column=None,
         if chunk[text_column].dtype != 'object':
             chunk[text_column] = chunk[text_column].astype(str)
         
-        # Preprocess text
+        # PERFORMANCE OPTIMIZATION: Use batch preprocessing instead of row-by-row
         try:
-            # Create a copy to avoid SettingWithCopyWarning
-            chunk = chunk.copy()
+            # EXTREME OPTIMIZATION: For very large files, sample rows from the chunk
+            if extreme_optimization and len(chunk) > 1000:
+                # Take a random sample of 50% of the rows
+                sample_indices = np.random.choice(len(chunk), size=len(chunk)//2, replace=False)
+                text_sample = chunk[text_column].values[sample_indices]
+                sentiment_sample = chunk[sentiment_column].values[sample_indices]
+                
+                # Preprocess the sampled texts
+                processed_texts = batch_preprocess(text_sample, lemmatizer)
+                chunk_y = sentiment_sample
+            else:
+                # Preprocess all texts in the chunk
+                processed_texts = batch_preprocess(chunk[text_column].values, lemmatizer)
+                chunk_y = chunk[sentiment_column].values
             
-            # Use loc to avoid SettingWithCopyWarning
-            chunk.loc[:, 'processed_text'] = chunk[text_column].apply(
-                lambda x: preprocess_text(
-                    x, 
-                    remove_stopwords=remove_stopwords,
-                    perform_stemming=perform_stemming,
-                    perform_lemmatization=perform_lemmatization,
-                    handle_negations=handle_negations
-                )
-            )
         except Exception as e:
             if callback:
                 callback(progress, f"Error preprocessing text: {str(e)}")
@@ -277,37 +523,48 @@ def process_large_file(file_path, text_column=None, sentiment_column=None,
         # Normalize sentiment labels
         chunk = normalize_sentiment_labels(chunk, sentiment_column)
         
-        # Split into train and test
-        X = chunk['processed_text'].values
-        y = chunk[sentiment_column].values
+        # Get the sentiment labels if we didn't sample
+        if not extreme_optimization or len(chunk) <= 1000:
+            chunk_y = chunk[sentiment_column].values
         
         # Skip empty chunks
-        if len(X) == 0:
+        if len(processed_texts) == 0:
             continue
         
         # Filter out any rows with sentiment values not in our predefined set
         # This ensures consistent classes across all chunks
-        valid_indices = np.isin(y, all_sentiment_classes)
+        valid_indices = np.isin(chunk_y, all_sentiment_classes)
         if not all(valid_indices):
             if callback:
                 callback(progress, f"Warning: Filtered out {sum(~valid_indices)} rows with unknown sentiment values")
-            X = X[valid_indices]
-            y = y[valid_indices]
+            processed_texts = [processed_texts[i] for i in range(len(processed_texts)) if valid_indices[i]]
+            chunk_y = chunk_y[valid_indices]
             
             # Skip if nothing left
-            if len(X) == 0:
+            if len(processed_texts) == 0:
                 continue
         
         # For the first chunk, save some data for testing
         if i == 0:
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
-            test_texts.extend(X_test)
-            test_labels.extend(y_test)
+            # Take a smaller test set for very large files
+            local_test_size = min(0.1, test_size) if extreme_optimization else test_size
+            X_train, X_test, y_train, y_test = train_test_split(processed_texts, chunk_y, test_size=local_test_size, random_state=42)
+            
+            # PERFORMANCE OPTIMIZATION: Limit test set size
+            test_idx = np.random.choice(len(X_test), min(len(X_test), max_test_samples // total_chunks), replace=False)
+            test_texts.extend([X_test[j] for j in test_idx])
+            test_labels.extend([y_test[j] for j in test_idx])
         else:
-            # For subsequent chunks, use a smaller test set
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=min(0.1, test_size), random_state=42)
-            test_texts.extend(X_test)
-            test_labels.extend(y_test)
+            # For subsequent chunks, use a smaller test set or none if we have enough
+            if len(test_texts) < max_test_samples:
+                local_test_size = min(0.05, test_size) if extreme_optimization else min(0.05, test_size)
+                X_train, X_test, y_train, y_test = train_test_split(processed_texts, chunk_y, test_size=local_test_size, random_state=42)
+                samples_needed = max_test_samples - len(test_texts)
+                test_idx = np.random.choice(len(X_test), min(len(X_test), samples_needed), replace=False)
+                test_texts.extend([X_test[j] for j in test_idx])
+                test_labels.extend([y_test[j] for j in test_idx])
+            else:
+                X_train, y_train = processed_texts, chunk_y
         
         # Transform text to feature vectors
         X_train_vec = vectorizer.transform(X_train)
@@ -325,6 +582,10 @@ def process_large_file(file_path, text_column=None, sentiment_column=None,
         chunk_time = time.time() - chunk_start_time
         if callback:
             try:
+                # PERFORMANCE OPTIMIZATION: Explicitly request garbage collection after each chunk
+                import gc
+                gc.collect()
+                
                 current_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
                 memory_diff = current_memory - initial_memory
             except:
@@ -332,11 +593,17 @@ def process_large_file(file_path, text_column=None, sentiment_column=None,
                 memory_diff = 0
                 
             callback(progress, f"Chunk {processed_chunks} processed in {chunk_time:.1f}s. "
-                            f"Memory: {current_memory:.1f}MB (+{memory_diff:.1f}MB)")
+                        f"Memory: {current_memory:.1f}MB (+{memory_diff:.1f}MB)")
+        
+        # EXTREME OPTIMIZATION: early stopping if we've processed enough chunks
+        if extreme_optimization and max_chunks_to_process and processed_chunks >= max_chunks_to_process:
+            if callback:
+                callback(0.9, f"Processed {processed_chunks} chunks (early stopping to reduce memory usage)")
+            break
     
     # Final evaluation on all test data
     if callback:
-        callback(0.97, "Evaluating model on test data...")
+        callback(0.97, f"Evaluating model on {len(test_texts)} test samples...")
     
     # Check if we have test data
     if len(test_texts) == 0 or len(test_labels) == 0:
@@ -344,46 +611,25 @@ def process_large_file(file_path, text_column=None, sentiment_column=None,
             callback(0.98, "Warning: No test data available for evaluation.")
         return model, vectorizer, {"accuracy": 0, "precision": 0, "recall": 0, "f1_score": 0, "confusion_matrix": [[0, 0], [0, 0]]}
     
-    # Ensure test labels are also in our class list
-    valid_test_indices = np.isin(test_labels, all_sentiment_classes)
-    if not all(valid_test_indices):
-        if callback:
-            callback(0.98, f"Warning: Filtered out {sum(~valid_test_indices)} test samples with unknown sentiment values")
-        test_texts = [test_texts[i] for i in range(len(test_texts)) if valid_test_indices[i]]
-        test_labels = [test_labels[i] for i in range(len(test_labels)) if valid_test_indices[i]]
-    
-    # Check if we have enough test data left
-    if len(test_texts) < 2:
-        if callback:
-            callback(0.98, "Warning: Not enough test data available after filtering. Using dummy metrics.")
-        return model, vectorizer, {
-            "accuracy": 0, 
-            "precision": 0, 
-            "recall": 0, 
-            "f1_score": 0, 
-            "confusion_matrix": [[0, 0], [0, 0]], 
-            "classes": all_sentiment_classes
-        }
-    
-    # Transform test data
+    # Transform test texts to feature vectors
     X_test_vec = vectorizer.transform(test_texts)
     
-    # Predict
+    # Make predictions
     y_pred = model.predict(X_test_vec)
     
-    # Compute metrics
+    # Calculate metrics
     metrics = {
         "accuracy": accuracy_score(test_labels, y_pred),
-        "precision": precision_score(test_labels, y_pred, average='weighted', zero_division=0),
-        "recall": recall_score(test_labels, y_pred, average='weighted', zero_division=0),
-        "f1_score": f1_score(test_labels, y_pred, average='weighted', zero_division=0),
-        "confusion_matrix": confusion_matrix(test_labels, y_pred).tolist(),
-        "classes": all_sentiment_classes
+        "precision": precision_score(test_labels, y_pred, average='weighted'),
+        "recall": recall_score(test_labels, y_pred, average='weighted'),
+        "f1_score": f1_score(test_labels, y_pred, average='weighted'),
+        "confusion_matrix": confusion_matrix(test_labels, y_pred).tolist()
     }
     
+    # Log completion time
     total_time = time.time() - start_time
     if callback:
-        callback(1.0, f"Processing complete in {total_time:.1f}s. Processed {processed_rows:,} rows.")
+        callback(1.0, f"Processing complete in {total_time:.1f}s. Accuracy: {metrics['accuracy']:.4f}")
     
     return model, vectorizer, metrics
 
