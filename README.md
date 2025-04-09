@@ -2,6 +2,9 @@
 
 A high-performance sentiment analysis tool for product reviews, achieving 92%+ accuracy on datasets with 50,000+ reviews.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+
 ## Features
 
 - **High Accuracy**: Optimized Logistic Regression model achieving 92%+ accuracy on large datasets
@@ -12,30 +15,43 @@ A high-performance sentiment analysis tool for product reviews, achieving 92%+ a
 - **Feature Importance**: Visualization of the most influential words for sentiment prediction
 - **Batch Predictions**: Process large sets of reviews in batches
 
+## Demo
+
+![Demo GIF](https://via.placeholder.com/800x400?text=Demo+GIF+Coming+Soon)
+
 ## Setup Instructions
 
 1. Clone the repository:
-   ```
+   ```bash
    git clone https://github.com/yourusername/sentiment-analysis-product-reviews.git
    cd sentiment-analysis-product-reviews
    ```
 
-2. Create and activate a virtual environment (optional but recommended):
-   ```
+2. Create and activate a virtual environment:
+   ```bash
+   # Create virtual environment
    python -m venv .venv
-   # On Windows
+   
+   # Activate on Windows
    .venv\Scripts\activate
-   # On macOS/Linux
+   
+   # Activate on macOS/Linux
    source .venv/bin/activate
    ```
 
 3. Install dependencies:
-   ```
+   ```bash
    pip install -r requirements.txt
+   
+   # Download required NLTK data
+   python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('wordnet')"
+   
+   # Download spaCy model
+   python -m spacy download en_core_web_sm
    ```
 
 4. Run the application:
-   ```
+   ```bash
    streamlit run main.py
    ```
 
@@ -83,13 +99,34 @@ A high-performance sentiment analysis tool for product reviews, achieving 92%+ a
 - `models/` - Saved models
 - `main.py` - Application entry point
 
+## Contribution Guidelines
+
+We welcome contributions to improve this project! Here's how you can help:
+
+1. **Fork the repository**
+2. **Create a new branch**: `git checkout -b feature/your-feature-name`
+3. **Make your changes**
+4. **Run tests**: `pytest tests/`
+5. **Commit your changes**: `git commit -m "Add feature: your feature description"`
+6. **Push to your fork**: `git push origin feature/your-feature-name`
+7. **Create a Pull Request**
+
+Please ensure your code follows our style guidelines and includes appropriate tests.
+
+### Code Style
+
+- Follow PEP 8 guidelines
+- Include docstrings for functions and classes
+- Write meaningful commit messages
+
 ## License
 
-MIT License - See LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Contributors
+## Acknowledgements
 
-- Your Name
+- NLTK and scikit-learn for providing excellent NLP and ML libraries
+- Streamlit for the interactive web application framework
 
 ## Achieving 92% Accuracy
 
@@ -99,4 +136,4 @@ This project achieves 92%+ accuracy through:
 - Comprehensive text preprocessing with negation handling
 - Proper handling of class imbalance
 
-For very large datasets, the system automatically falls back to memory-efficient processing using HashingVectorizer and chunked training. 
+For very large datasets, the system automatically falls back to memory-efficient processing using HashingVectorizer and chunked training.
