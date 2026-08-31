@@ -2,9 +2,11 @@
 
 ## Preferred model artifacts
 
-Phase 4 uses `skops==0.14.0` for preferred inference artifacts (`*.inference.skops`). Before the application loads one of these files, it calls `skops.io.get_untrusted_types()` and refuses the artifact if any serialized type is not trusted by default. The application does not automatically approve unknown types.
+Phase 4 uses `skops==0.14.0` for preferred inference artifacts (`*.inference.skops`). Before loading one, the application calls `skops.io.get_untrusted_types()` and compares the result with a static, exact allowlist of reviewed scikit-learn calibration implementation types.
 
-`skops` is safer than pickle-based persistence, but it is still a deserialization format. Review an artifact's source and provenance before using it, and do not weaken the trust check merely to make an unfamiliar file load.
+The allowlist is intentionally narrow: `_CalibratedClassifier`, `_SigmoidCalibration`, `_TemperatureScaling`, and `StratifiedKFold`. These are framework objects created by this project's `CalibratedClassifierCV` training path. Any other type reported by skops is rejected. The application never trusts the full set returned by an arbitrary artifact automatically.
+
+`skops` is safer than pickle-based persistence, but it is still a deserialization format. Review an artifact's source and provenance before using it. A future new type must be reviewed explicitly before the static policy changes.
 
 ## Legacy joblib compatibility
 
