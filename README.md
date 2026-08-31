@@ -1,12 +1,12 @@
 # Sentiment Analysis for Product Reviews
 
-A Streamlit-based NLP application for exploring, training, comparing, and using classical sentiment classifiers on product-review data.
+A Streamlit-based NLP application for exploring, training, comparing, and using classical sentiment classifiers on product-review data with explicit correctness, evidence, inference, and artifact-security contracts.
 
 ## Current status
 
-**Phase 3: inference and product reliability (stacked on Phase 2).** Phase 1 established the correctness foundation. Phase 2 adds the frozen external benchmark and remains behind its evidence gate until the benchmark artifact is committed. Phase 3 is being developed on top of that branch without bypassing the gate.
+**Phase 4: release hardening (stacked on Phase 3).** Phase 1 established correctness and deterministic foundations. Phase 2 adds a frozen external benchmark and remains behind its benchmark-evidence gate. Phase 3 adds inference-safe preprocessing contracts, calibrated confidence, and error analysis. Phase 4 prepares the repository for a v1.0 release without bypassing those earlier gates.
 
-Phase 3 adds an inference bundle that captures the training-time preprocessing contract, supports cross-validated probability calibration, reports calibration-aware metrics, and produces structured error analysis. The legacy Streamlit workflow remains available while prediction paths are migrated incrementally.
+Phase 4 adds safe-by-default `.skops` inference artifacts, per-artifact provenance manifests/model cards, release validation, package metadata, and cleanup of previously committed generated model binaries. The project version remains pre-1.0 until the Phase 2 evidence result is committed and the stacked phases are merged in order.
 
 ## Label contracts
 
@@ -23,49 +23,49 @@ Numeric labels are not interpreted by value alone:
 
 The application supports Logistic Regression, Multinomial Naive Bayes, Linear SVM, and Random Forest. TF-IDF is used for normal training and HashingVectorizer supports bounded-memory processing.
 
-The Phase 2 external benchmark uses a baseline ladder of Dummy Classifier, Multinomial Naive Bayes, Logistic Regression, and Linear SVM. Random Forest is not part of the frozen sparse-text benchmark because the benchmark prioritizes strong, resource-efficient classical baselines.
+The Phase 2 external benchmark uses Dummy Classifier, Multinomial Naive Bayes, Logistic Regression, and Linear SVM. Random Forest is intentionally outside the frozen sparse-text benchmark because that benchmark prioritizes strong, resource-efficient classical baselines.
 
 ## Reproducible Phase 2 benchmark
 
-The benchmark source is MTEB `amazon_polarity`, pinned to revision `ec149c1fe36043668a50804214d4597804001f6f`. The source dataset contains 3,599,994 training reviews and 400,000 test reviews with binary labels (`0 = negative`, `1 = positive`).
+The benchmark source is MTEB `amazon_polarity`, pinned to revision `ec149c1fe36043668a50804214d4597804001f6f`. The frozen Phase 2 profile uses:
 
-The frozen Phase 2 profile uses a reproducible, balanced subset:
+- 50,000 training reviews: 25,000 per class;
+- 10,000 test reviews: 5,000 per class;
+- fixed seed `42` and pinned `datasets==5.0.1`;
+- train-only TF-IDF with up to 50,000 unigram/bigram features;
+- macro F1 as the primary metric;
+- accuracy, macro precision/recall, balanced accuracy, per-class metrics, and a confusion matrix;
+- selected-sample SHA-256 fingerprints plus duplicate and train/test-overlap checks.
 
-- 50,000 training reviews: 25,000 per class
-- 10,000 test reviews: 5,000 per class
-- fixed seed `42`
-- pinned `datasets==5.0.1`
-- train-only TF-IDF fitting with up to 50,000 unigram/bigram features
-- primary metric: macro F1
-- supporting metrics: accuracy, macro precision/recall, balanced accuracy, per-class metrics, confusion matrix
-- selected-sample SHA-256 fingerprints and train/test overlap checks recorded in every result
-
-This is deliberately described as the **Phase 2 subset benchmark**, not as a result on the full 3.6M-review training split. See [benchmarks/README.md](benchmarks/README.md) and the frozen [protocol](benchmarks/protocols/amazon_polarity_phase2_v1.json).
-
-Run it with:
+This is the **Phase 2 subset benchmark**, not a result on the full 3.6M-review training split. See [benchmarks/README.md](benchmarks/README.md) and the frozen [protocol](benchmarks/protocols/amazon_polarity_phase2_v1.json).
 
 ```bash
 python -m pip install -e ".[benchmark]"
 python -m src.benchmarking --profile phase2
 ```
 
-A smaller `smoke` profile is available for integration checks but must not be used for release performance claims.
+The `smoke` profile is for integration checks only and must not be used for release performance claims.
 
-## Inference reliability (Phase 3)
+## Reliable inference
 
-`src/inference.py` introduces an `InferenceBundle`: the fitted estimator, label schema, random seed, and immutable preprocessing settings travel together. Raw prediction text is therefore transformed with the same settings used during training instead of whatever UI checkboxes happen to be selected later.
+`src/inference.py` defines an `InferenceBundle`: the fitted estimator, resolved label schema, random seed, feature settings, and immutable preprocessing settings travel together. Raw prediction text is transformed with the same settings used during training instead of later UI choices.
 
-For confidence-aware inference, Phase 3 can wrap the complete TF-IDF + classifier pipeline in cross-validated `CalibratedClassifierCV`. Calibration is fit only inside the training split; the holdout remains untouched. Uncalibrated estimators without `predict_proba` return no confidence rather than a synthetic score.
+Confidence-aware training can wrap the complete TF-IDF + classifier pipeline in cross-validated calibration. Calibration is fit only inside the training split; the holdout remains untouched. Estimators without real probability estimates return no confidence instead of a synthetic decision-score probability.
 
-Evaluation now includes:
+Evaluation includes macro F1, balanced accuracy, accuracy, macro precision/recall, log loss when probabilities exist, expected calibration error, confidence-threshold coverage/selective accuracy, and row-level error analysis. See [docs/INFERENCE.md](docs/INFERENCE.md).
 
-- macro F1, balanced accuracy, accuracy, macro precision and recall
-- log loss when probabilities exist
-- expected calibration error (ECE)
-- confidence-threshold coverage and selective accuracy at 0.5, 0.7, 0.8 and 0.9
-- row-level error analysis with true label, prediction, confidence and error type
+## Safe persistence and provenance
 
-See [docs/INFERENCE.md](docs/INFERENCE.md) for the contract and migration rules.
+Preferred inference artifacts use `skops==0.14.0` and end in `.inference.skops`. The application inspects every preferred artifact with `skops.io.get_untrusted_types()` and refuses to load it if unknown serialized types are present. It does **not** automatically trust whatever a file requests.
+
+When a preferred bundle is saved, the Reliable Inference page also writes:
+
+- a JSON manifest with artifact SHA-256, runtime versions, model/inference metadata, code revision when discoverable, evaluation metrics, and training-data fingerprint; and
+- a generated model card covering intended use, limitations, provenance, evaluation, benchmark-evidence status, reproducibility, and security.
+
+See [docs/MODEL_CARD.md](docs/MODEL_CARD.md) for the model-card contract.
+
+Legacy `.joblib` persistence remains available only for backwards compatibility with fully trusted local files. Joblib uses pickle semantics and can execute code while loading a malicious artifact. See [SECURITY.md](SECURITY.md).
 
 ## Setup
 
@@ -91,33 +91,30 @@ Run the app:
 streamlit run main.py
 ```
 
-## Development
+## Development and release gates
 
 ```bash
 python -m pip install -e ".[dev]"
 python -m compileall -q src main.py pages tests
 python -m pytest -q
+python -m src.release --check candidate
 python -m pip check
 ```
 
-CI runs these checks on Python 3.11 and 3.13.
+CI runs these checks on Python 3.11 and 3.13. A separate manual **Release gate** runs the stricter `python -m src.release --check release`; that check intentionally fails until the committed Phase 2 benchmark result exists and the package version is explicitly set to `1.0.0`.
 
 ## Data and evidence
 
-`datasets/sample_reviews.csv` is a demonstration dataset, not a benchmark. Large/raw datasets remain outside Git. Performance claims require a committed benchmark result with identified data, immutable revision, selection protocol, fingerprints, split-integrity checks, metrics, and runtime metadata.
+`datasets/sample_reviews.csv` is a demonstration dataset, not a benchmark. Large/raw datasets remain outside Git. CSV parsing is strict: malformed input raises an error instead of silently dropping records.
 
-CSV parsing is strict: malformed input raises an error instead of silently dropping records.
-
-## Model persistence and trust
-
-Saved `.joblib` models are a compatibility feature. `joblib` uses pickle semantics, so loading an untrusted artifact can execute code. Only load models you created or fully trust. See [SECURITY.md](SECURITY.md).
+Performance claims require committed benchmark evidence with identified data, immutable revision, selection protocol, fingerprints, split-integrity checks, metrics, and runtime metadata.
 
 ## Roadmap
 
 - **Phase 1 - complete:** correctness, deterministic behavior, packaging, tests, CI
 - **Phase 2 - evidence gate active:** reproducible external benchmark and evidence-backed model comparison
-- **Phase 3 - active (stacked):** inference contract, calibrated confidence, error analysis and product migration
-- **Phase 4:** release hardening, provenance/model cards, safer persistence, v1.0.0
+- **Phase 3 - code complete / stacked:** inference contract, calibrated confidence, error analysis, product migration
+- **Phase 4 - active / stacked:** safe persistence, provenance/model cards, release validation, generated-artifact cleanup, v1.0 readiness
 
 ## License
 
