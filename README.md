@@ -4,9 +4,9 @@ A Streamlit-based NLP application for exploring, training, comparing, and using 
 
 ## Current status
 
-**Phase 2: reproducible benchmark.** Phase 1 established explicit label contracts, canonical preprocessing, deterministic model training, strict parsing, honest probability handling, packaging, tests, CI, and model-artifact security guidance. Phase 2 now adds an external, version-pinned benchmark so model comparisons can be backed by reproducible evidence instead of headline claims.
+**Phase 3: inference and product reliability (stacked on Phase 2).** Phase 1 established the correctness foundation. Phase 2 adds the frozen external benchmark and remains behind its evidence gate until the benchmark artifact is committed. Phase 3 is being developed on top of that branch without bypassing the gate.
 
-The benchmark is intentionally separate from `datasets/sample_reviews.csv`, which remains demonstration data only.
+Phase 3 adds an inference bundle that captures the training-time preprocessing contract, supports cross-validated probability calibration, reports calibration-aware metrics, and produces structured error analysis. The legacy Streamlit workflow remains available while prediction paths are migrated incrementally.
 
 ## Label contracts
 
@@ -51,6 +51,22 @@ python -m src.benchmarking --profile phase2
 
 A smaller `smoke` profile is available for integration checks but must not be used for release performance claims.
 
+## Inference reliability (Phase 3)
+
+`src/inference.py` introduces an `InferenceBundle`: the fitted estimator, label schema, random seed, and immutable preprocessing settings travel together. Raw prediction text is therefore transformed with the same settings used during training instead of whatever UI checkboxes happen to be selected later.
+
+For confidence-aware inference, Phase 3 can wrap the complete TF-IDF + classifier pipeline in cross-validated `CalibratedClassifierCV`. Calibration is fit only inside the training split; the holdout remains untouched. Uncalibrated estimators without `predict_proba` return no confidence rather than a synthetic score.
+
+Evaluation now includes:
+
+- macro F1, balanced accuracy, accuracy, macro precision and recall
+- log loss when probabilities exist
+- expected calibration error (ECE)
+- confidence-threshold coverage and selective accuracy at 0.5, 0.7, 0.8 and 0.9
+- row-level error analysis with true label, prediction, confidence and error type
+
+See [docs/INFERENCE.md](docs/INFERENCE.md) for the contract and migration rules.
+
 ## Setup
 
 Python 3.11+ is required.
@@ -79,7 +95,7 @@ streamlit run main.py
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m compileall -q src main.py tests
+python -m compileall -q src main.py pages tests
 python -m pytest -q
 python -m pip check
 ```
@@ -99,8 +115,8 @@ Saved `.joblib` models are a compatibility feature. `joblib` uses pickle semanti
 ## Roadmap
 
 - **Phase 1 - complete:** correctness, deterministic behavior, packaging, tests, CI
-- **Phase 2 - active:** reproducible external benchmark and evidence-backed model comparison
-- **Phase 3:** inference/product redesign, calibrated confidence, error analysis
+- **Phase 2 - evidence gate active:** reproducible external benchmark and evidence-backed model comparison
+- **Phase 3 - active (stacked):** inference contract, calibrated confidence, error analysis and product migration
 - **Phase 4:** release hardening, provenance/model cards, safer persistence, v1.0.0
 
 ## License
