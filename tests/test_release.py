@@ -12,9 +12,11 @@ from src.release import (
     write_release_sidecars,
 )
 from src.safe_persistence import (
+    REVIEWED_SKLEARN_INTERNAL_TYPES,
     inspect_safe_inference_bundle,
     load_safe_inference_bundle,
     save_safe_inference_bundle,
+    unapproved_safe_inference_types,
 )
 
 
@@ -64,7 +66,10 @@ def test_safe_skops_round_trip_supports_calibrated_svm(tmp_path):
         random_state=19,
     )
     path = save_safe_inference_bundle(bundle, "calibrated-svm", tmp_path)
-    assert inspect_safe_inference_bundle(path) == ()
+    reported = set(inspect_safe_inference_bundle(path))
+    assert reported
+    assert reported.issubset(REVIEWED_SKLEARN_INTERNAL_TYPES)
+    assert unapproved_safe_inference_types(path) == ()
     loaded = load_safe_inference_bundle(path)
     probabilities = loaded.predict_proba(["excellent value", "awful waste"])
     assert probabilities.shape == (2, 2)
