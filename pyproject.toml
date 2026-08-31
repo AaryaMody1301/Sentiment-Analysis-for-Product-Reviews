@@ -16,6 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3,<9"]
+benchmark = ["datasets==5.0.1"]
 
 [tool.setuptools.packages.find]
 where = ["."]

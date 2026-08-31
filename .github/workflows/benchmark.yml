@@ -1,0 +1,52 @@
+name: Benchmark
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/benchmarking.py"
+      - "benchmarks/**"
+      - "pyproject.toml"
+      - ".github/workflows/benchmark.yml"
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Benchmark profile
+        required: true
+        default: phase2
+        type: choice
+        options:
+          - smoke
+          - phase2
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HF_HUB_DISABLE_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[benchmark]"
+      - name: Run frozen benchmark
+        shell: bash
+        run: |
+          PROFILE="${{ inputs.profile }}"
+          if [ -z "$PROFILE" ]; then PROFILE="phase2"; fi
+          mkdir -p benchmark-results
+          python -m src.benchmarking --profile "$PROFILE" --output "benchmark-results/amazon_polarity_${PROFILE}_v1.json"
+      - name: Show result
+        run: cat benchmark-results/*.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: amazon-polarity-benchmark
+          path: benchmark-results/*.json
+          if-no-files-found: error
