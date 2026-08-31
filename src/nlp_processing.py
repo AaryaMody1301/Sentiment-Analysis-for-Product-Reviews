@@ -1,315 +1,272 @@
-import pandas as pd
-import numpy as np
+from __future__ import annotations
+
 import re
-import string
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
-from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
+import warnings
+from enum import Enum
+from typing import Iterable
 
-# Download NLTK resources at import time
-try:
-    nltk.data.find('tokenizers/punkt')
-    nltk.data.find('corpora/stopwords')
-    nltk.data.find('corpora/wordnet')
-except LookupError:
-    nltk.download('punkt')
-    nltk.download('stopwords')
-    nltk.download('wordnet')
+import numpy as np
+import pandas as pd
+from nltk.stem import PorterStemmer, WordNetLemmatizer
+from sklearn.feature_extraction.text import HashingVectorizer, TfidfVectorizer
+from sklearn.utils.class_weight import compute_class_weight
 
-def preprocess_text(text, remove_stopwords=True, perform_stemming=False, 
-                   perform_lemmatization=True, handle_negations=True):
-    """
-    Preprocess text for sentiment analysis.
-    
-    Args:
-        text (str): Text to preprocess.
-        remove_stopwords (bool): Whether to remove stopwords.
-        perform_stemming (bool): Whether to perform stemming (not used if lemmatization is True).
-        perform_lemmatization (bool): Whether to perform lemmatization.
-        handle_negations (bool): Whether to handle negations (not good -> not_good).
-        
-    Returns:
-        str: Preprocessed text.
-    """
-    # Handle missing values
+
+class LabelSchema(str, Enum):
+    TEXT = "text"
+    BINARY_01 = "binary_01"
+    STARS_1_TO_5 = "stars_1_to_5"
+
+
+_TEXT_MAP = {
+    "positive": "positive",
+    "pos": "positive",
+    "yes": "positive",
+    "good": "positive",
+    "true": "positive",
+    "negative": "negative",
+    "neg": "negative",
+    "no": "negative",
+    "bad": "negative",
+    "false": "negative",
+    "neutral": "neutral",
+    "neu": "neutral",
+    "maybe": "neutral",
+    "ok": "neutral",
+    "okay": "neutral",
+}
+_TEXT_COLUMN_HINTS = ("sentiment", "label", "class", "polarity", "target")
+_STAR_COLUMN_HINTS = ("rating", "stars", "star", "score")
+_WORDNET_AVAILABLE: bool | None = None
+_WORDNET_WARNING_EMITTED = False
+
+
+def _normalized_scalar(value: object) -> str:
+    if pd.isna(value):
+        raise ValueError("Sentiment labels cannot be missing.")
+    return str(value).strip().lower()
+
+
+def infer_label_schema(values: Iterable[object], column_name: str = "") -> LabelSchema:
+    series = pd.Series(list(values)).dropna()
+    if series.empty:
+        raise ValueError("Cannot infer a sentiment label schema from an empty column.")
+
+    normalized = {_normalized_scalar(value) for value in series.unique()}
+    if normalized and normalized.issubset(_TEXT_MAP):
+        return LabelSchema.TEXT
+
+    column = column_name.strip().lower()
+    numeric_values: set[int] = set()
+    for value in series.unique():
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "Unrecognized sentiment labels. Supply an explicit label schema."
+            ) from exc
+        if not numeric.is_integer():
+            raise ValueError(
+                "Numeric sentiment labels must be integer-valued and use an explicit schema."
+            )
+        numeric_values.add(int(numeric))
+
+    if numeric_values.issubset({0, 1}) and any(hint in column for hint in _TEXT_COLUMN_HINTS):
+        return LabelSchema.BINARY_01
+    if numeric_values.issubset({1, 2, 3, 4, 5}) and any(
+        hint in column for hint in _STAR_COLUMN_HINTS
+    ):
+        return LabelSchema.STARS_1_TO_5
+
+    raise ValueError(
+        "Numeric labels are ambiguous. Choose 'binary_01' for 0/1 targets or "
+        "'stars_1_to_5' for product ratings."
+    )
+
+
+def resolve_label_schema(
+    values: Iterable[object], column_name: str = "", schema: str | LabelSchema = "auto"
+) -> LabelSchema:
+    if schema == "auto":
+        return infer_label_schema(values, column_name)
+    try:
+        return LabelSchema(schema)
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in LabelSchema)
+        raise ValueError(f"Unknown label schema '{schema}'. Expected one of: {allowed}.") from exc
+
+
+def normalize_sentiment_series(
+    series: pd.Series, schema: str | LabelSchema = "auto", column_name: str | None = None
+) -> pd.Series:
+    resolved = resolve_label_schema(series, column_name or str(series.name or ""), schema)
+
+    def map_value(value: object) -> str:
+        if resolved is LabelSchema.TEXT:
+            key = _normalized_scalar(value)
+            if key not in _TEXT_MAP:
+                raise ValueError(f"Unsupported text sentiment label: {value!r}")
+            return _TEXT_MAP[key]
+
+        try:
+            numeric = int(float(value))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Expected a numeric sentiment label, got {value!r}.") from exc
+
+        if resolved is LabelSchema.BINARY_01:
+            if numeric not in (0, 1):
+                raise ValueError(f"binary_01 accepts only 0 or 1, got {value!r}.")
+            return "positive" if numeric == 1 else "negative"
+
+        if numeric not in (1, 2, 3, 4, 5):
+            raise ValueError(f"stars_1_to_5 accepts only 1 through 5, got {value!r}.")
+        if numeric <= 2:
+            return "negative"
+        if numeric == 3:
+            return "neutral"
+        return "positive"
+
+    return series.map(map_value)
+
+
+def normalize_sentiment_labels(
+    df: pd.DataFrame, sentiment_column: str, schema: str | LabelSchema = "auto"
+) -> pd.DataFrame:
+    if sentiment_column not in df.columns:
+        raise KeyError(f"Sentiment column '{sentiment_column}' was not found.")
+    normalized = df.copy()
+    normalized[sentiment_column] = normalize_sentiment_series(
+        normalized[sentiment_column], schema=schema, column_name=sentiment_column
+    )
+    return normalized
+
+
+def preprocess_text(
+    text: object,
+    remove_stopwords: bool = True,
+    perform_stemming: bool = False,
+    perform_lemmatization: bool = True,
+    handle_negations: bool = True,
+) -> str:
     if pd.isna(text):
         return ""
-    
-    # Convert to string if input is not a string
-    try:
-        if not isinstance(text, str):
-            text = str(text)
-    except:
-        return ""  # Return empty string if conversion fails
-    
-    # Handle empty strings
-    if not text.strip():
+    text = str(text).strip().lower()
+    if not text:
         return ""
-    
-    # Convert to lowercase
-    text = text.lower()
-    
-    # Handle negations before removing punctuation if requested
-    if handle_negations:
-        # Replace "not" followed by a word with "not_word"
-        text = re.sub(r'not\s+(\w+)', r'not_\1', text)
-        # Replace "n't" contractions
-        text = re.sub(r"n't\s+(\w+)", r'not_\1', text)
-        text = text.replace("n't", " not")
-    
-    # Remove punctuation, but keep the underscores used in negation handling
-    if handle_negations:
-        # Remove all punctuation except underscores
-        punct = string.punctuation.replace('_', '')
-        text = re.sub(f'[{re.escape(punct)}]', ' ', text)
-    else:
-        # Remove all punctuation
-        text = re.sub(f'[{re.escape(string.punctuation)}]', ' ', text)
-    
-    # Use proper tokenization with NLTK
-    tokens = word_tokenize(text)
-    
-    # Remove stopwords (but keep negation words if we're handling negations)
-    if remove_stopwords:
-        stop_words = set(stopwords.words('english'))
-        # If handling negations, keep "not" in the text
-        if handle_negations:
-            stop_words.discard('not')
-        tokens = [token for token in tokens if token not in stop_words]
-    
-    # Lemmatization takes precedence over stemming if both are selected
-    if perform_lemmatization:
-        lemmatizer = WordNetLemmatizer()
-        # Better lemmatization with POS tagging
-        lemmatized_tokens = []
-        for token in tokens:
-            # Try lemmatizing as verb first, then as noun
-            lemmatized_verb = lemmatizer.lemmatize(token, pos='v')
-            # If lemmatizing as verb changes the word, use that
-            if lemmatized_verb != token:
-                lemmatized_tokens.append(lemmatized_verb)
-            else:
-                # Otherwise use noun lemmatization (default)
-                lemmatized_tokens.append(lemmatizer.lemmatize(token))
-        tokens = lemmatized_tokens
-    
-    # Join tokens back into text
-    return ' '.join(tokens)
 
-def create_tfidf_vectorizer(max_features=5000, ngram_range=(1, 2), use_idf=True):
-    """
-    Create a TF-IDF vectorizer with specified parameters.
-    
-    Args:
-        max_features (int): Maximum number of features to extract.
-        ngram_range (tuple): The lower and upper boundary of the range of n-values for n-grams.
-        use_idf (bool): Whether to use inverse document frequency weighting.
-        
-    Returns:
-        TfidfVectorizer: Configured TF-IDF vectorizer.
-    """
+    text = re.sub(r"n't\b", " not", text)
+    if handle_negations:
+        text = re.sub(r"\bnot\s+([a-z0-9_]+)", r"not_\1", text)
+    tokens = re.findall(r"[a-z0-9_]+", text)
+
+    if remove_stopwords:
+        from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+        stop_words = set(ENGLISH_STOP_WORDS)
+        stop_words.discard("not")
+        tokens = [
+            token
+            for token in tokens
+            if token.startswith("not_") or token == "not" or token not in stop_words
+        ]
+
+    if perform_lemmatization:
+        global _WORDNET_AVAILABLE, _WORDNET_WARNING_EMITTED
+        lemmatizer = WordNetLemmatizer()
+        if _WORDNET_AVAILABLE is not False:
+            try:
+                tokens = [lemmatizer.lemmatize(token, pos="v") for token in tokens]
+                tokens = [lemmatizer.lemmatize(token) for token in tokens]
+                _WORDNET_AVAILABLE = True
+            except LookupError:
+                _WORDNET_AVAILABLE = False
+        if _WORDNET_AVAILABLE is False and not _WORDNET_WARNING_EMITTED:
+            warnings.warn(
+                "NLTK wordnet data is unavailable; continuing without lemmatization. "
+                "Run 'python -m nltk.downloader wordnet' to enable it.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            _WORDNET_WARNING_EMITTED = True
+    elif perform_stemming:
+        stemmer = PorterStemmer()
+        tokens = [stemmer.stem(token) for token in tokens]
+
+    return " ".join(tokens)
+
+
+def create_tfidf_vectorizer(
+    max_features: int = 5000,
+    ngram_range: tuple[int, int] = (1, 2),
+    use_idf: bool = True,
+) -> TfidfVectorizer:
     return TfidfVectorizer(
         max_features=max_features,
         ngram_range=ngram_range,
-        stop_words='english',  # Remove English stop words
         use_idf=use_idf,
-        min_df=5,  # Ignore terms that appear in less than 5 documents
-        max_df=0.8,  # Ignore terms that appear in more than 80% of documents
-        sublinear_tf=True  # Apply sublinear tf scaling (1 + log(tf))
+        min_df=1,
+        max_df=0.95,
+        sublinear_tf=True,
     )
 
-def create_hashing_vectorizer(n_features=2**18, ngram_range=(1, 2)):
-    """
-    Create a hashing vectorizer for memory-efficient feature extraction.
-    
-    Args:
-        n_features (int): Number of features to extract.
-        ngram_range (tuple): The lower and upper boundary of the range of n-values for n-grams.
-        
-    Returns:
-        HashingVectorizer: Configured hashing vectorizer.
-    """
+
+def create_hashing_vectorizer(
+    n_features: int = 2**18, ngram_range: tuple[int, int] = (1, 2)
+) -> HashingVectorizer:
     return HashingVectorizer(
         n_features=n_features,
         ngram_range=ngram_range,
-        alternate_sign=False,  # No negative values, useful for Naive Bayes
-        norm='l2'  # Normalize feature vectors
+        alternate_sign=False,
+        norm="l2",
     )
 
-def normalize_sentiment_labels(df, sentiment_column):
-    """
-    Normalize sentiment labels to 'positive', 'negative', and 'neutral'.
-    Maps various formats to standard format.
-    
-    Args:
-        df (pd.DataFrame): Dataset with sentiment labels.
-        sentiment_column (str): Name of the column containing sentiment labels.
-        
-    Returns:
-        pd.DataFrame: Dataset with normalized sentiment labels.
-    """
-    # Create a copy of the dataframe
-    df_normalized = df.copy()
-    
-    # Define mappings for various label formats
-    positive_labels = ['positive', 'pos', '1', 1, 'yes', 'good', 'true', True, '4', '5', 4, 5]
-    negative_labels = ['negative', 'neg', '0', 0, 'no', 'bad', 'false', False, '1', '2', 1, 2]
-    neutral_labels = ['neutral', 'neu', '2', 2, 'maybe', 'ok', 'okay', '3', 3]
-    
-    # Apply mapping
-    def map_sentiment(label):
-        if str(label).lower() in [str(l).lower() for l in positive_labels]:
-            return 'positive'
-        elif str(label).lower() in [str(l).lower() for l in negative_labels]:
-            return 'negative'
-        elif str(label).lower() in [str(l).lower() for l in neutral_labels]:
-            return 'neutral'
-        else:
-            return 'neutral'  # Default for any other label
-    
-    df_normalized[sentiment_column] = df_normalized[sentiment_column].apply(map_sentiment)
-    
-    return df_normalized
 
-def detect_columns(df):
-    """
-    Automatically detect text and sentiment columns based on column names and content.
-    
-    Args:
-        df (pd.DataFrame): DataFrame to analyze
-        
-    Returns:
-        tuple: (text_column, sentiment_column)
-    """
-    # Common text column names
-    text_patterns = ['review', 'text', 'comment', 'feedback', 'description', 'content', 'message']
-    
-    # Common sentiment column names
-    sentiment_patterns = ['sentiment', 'label', 'rating', 'score', 'class', 'polarity', 'emotion', 'star']
-    
-    # Initialize best matches
-    text_col = None
-    sentiment_col = None
-    
-    # Get all column names in lowercase for case-insensitive matching
-    cols_lower = {col.lower(): col for col in df.columns}
-    
-    # First, look for exact matches in column names
-    for pattern in text_patterns:
-        for col_lower, col in cols_lower.items():
-            if pattern in col_lower:
-                text_col = col
-                break
-        if text_col:
-            break
-    
-    for pattern in sentiment_patterns:
-        for col_lower, col in cols_lower.items():
-            if pattern in col_lower:
-                sentiment_col = col
-                break
-        if sentiment_col:
-            break
-    
-    # If no match found yet, try heuristics based on content
-    if not text_col or not sentiment_col:
-        # Examine each column
-        for col in df.columns:
-            # Skip if we've already found this column type
-            if col == sentiment_col:
-                continue
-                
-            # Check if it might be a text column
-            if not text_col and df[col].dtype == 'object':
-                # Look at the average length of strings
-                avg_len = df[col].astype(str).str.len().mean()
-                # Text columns typically have longer strings
-                if avg_len > 20:  # Arbitrary threshold
-                    text_col = col
-            
-            # Check if it might be a sentiment column
-            if not sentiment_col and df[col].dtype != 'object':
-                # Sentiment columns often have a small number of unique values
-                if df[col].nunique() <= 5:  # Typical for ratings (1-5)
-                    sentiment_col = col
-    
-    # If still no match, take best guess
-    if not text_col and len(df.columns) > 0:
-        # Take the first string column with the longest average length
-        str_cols = df.select_dtypes(include=['object']).columns
-        if len(str_cols) > 0:
-            avg_lengths = {col: df[col].astype(str).str.len().mean() for col in str_cols}
-            text_col = max(avg_lengths.items(), key=lambda x: x[1])[0]
-        else:
-            text_col = df.columns[0]
-    
-    if not sentiment_col and len(df.columns) > 1:
-        # Take a numeric column with few unique values, excluding any ID-like columns
-        num_cols = df.select_dtypes(include=['number']).columns
-        if len(num_cols) > 0:
-            # Filter out columns that are likely IDs (many unique values)
-            potential_cols = {}
-            for col in num_cols:
-                if col != text_col and df[col].nunique() < max(10, len(df) * 0.1):
-                    potential_cols[col] = df[col].nunique()
-            
-            if potential_cols:
-                # Choose column with fewest unique values
-                sentiment_col = min(potential_cols.items(), key=lambda x: x[1])[0]
-            else:
-                # If no good candidate, take the first numeric column that's not the text column
-                for col in num_cols:
-                    if col != text_col:
-                        sentiment_col = col
-                        break
-        
-        if not sentiment_col:
-            # Take the column with the fewest unique values that's not the text column
-            unique_counts = {col: df[col].nunique() for col in df.columns if col != text_col}
-            if unique_counts:
-                sentiment_col = min(unique_counts.items(), key=lambda x: x[1])[0]
-            else:
-                sentiment_col = df.columns[1] if len(df.columns) > 1 else df.columns[0]
-    
-    return text_col, sentiment_col
+def detect_columns(df: pd.DataFrame) -> tuple[str | None, str | None]:
+    if df.empty and len(df.columns) == 0:
+        return None, None
 
-def compute_class_weights(y):
-    """
-    Compute class weights for imbalanced datasets.
-    
-    Args:
-        y (array-like): Target labels
-        
-    Returns:
-        dict: Class weights dictionary
-    """
-    classes = np.unique(y)
-    class_counts = np.bincount([np.where(classes == c)[0][0] for c in y])
-    total_samples = len(y)
-    
-    # Calculate weights as inverse of class frequency
-    weights = total_samples / (len(classes) * class_counts)
-    
-    # Create dictionary mapping class labels to weights
-    class_weights = {c: w for c, w in zip(classes, weights)}
-    
-    return class_weights
+    text_patterns = ("review", "text", "comment", "feedback", "description", "content", "message")
+    sentiment_patterns = ("sentiment", "label", "rating", "score", "class", "polarity", "star")
 
-def generate_feature_names(vectorizer, top_n=20):
-    """
-    Get feature names from a vectorizer.
-    
-    Args:
-        vectorizer: TF-IDF vectorizer (must not be a hashing vectorizer)
-        top_n (int): Number of top features to return
-        
-    Returns:
-        list: List of feature names, or None if using HashingVectorizer
-    """
-    if hasattr(vectorizer, 'get_feature_names_out'):
-        feature_names = vectorizer.get_feature_names_out()
-        return feature_names
-    else:
-        return None 
+    text_column = next(
+        (col for col in df.columns if any(pattern in str(col).lower() for pattern in text_patterns)),
+        None,
+    )
+    sentiment_column = next(
+        (
+            col
+            for col in df.columns
+            if col != text_column
+            and any(pattern in str(col).lower() for pattern in sentiment_patterns)
+        ),
+        None,
+    )
+
+    if text_column is None:
+        string_columns = list(df.select_dtypes(include=["object", "string"]).columns)
+        if string_columns:
+            text_column = max(
+                string_columns,
+                key=lambda col: df[col].astype(str).str.len().mean(),
+            )
+
+    if sentiment_column is None:
+        candidates = [col for col in df.columns if col != text_column]
+        if candidates:
+            sentiment_column = min(candidates, key=lambda col: df[col].nunique(dropna=True))
+
+    return text_column, sentiment_column
+
+
+def compute_class_weights(y: Iterable[object]) -> dict[object, float]:
+    values = np.asarray(list(y))
+    classes = np.unique(values)
+    weights = compute_class_weight(class_weight="balanced", classes=classes, y=values)
+    return dict(zip(classes, weights, strict=True))
+
+
+def generate_feature_names(vectorizer: object, top_n: int = 20):
+    del top_n
+    if hasattr(vectorizer, "get_feature_names_out"):
+        return vectorizer.get_feature_names_out()
+    return None

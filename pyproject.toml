@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "product-review-sentiment"
+version = "0.1.0"
+description = "Evidence-first product-review sentiment analysis with explicit label contracts."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "altair>=5.2,<6", "joblib>=1.4,<2", "matplotlib>=3.10,<4", "nltk>=3.9,<4",
+  "numpy>=1.26,<3", "pandas>=2.2,<3", "psutil>=5.9,<8", "scikit-learn>=1.8,<2",
+  "streamlit>=1.62,<2", "tqdm>=4.66,<5", "wordcloud>=1.9,<2"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<9"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

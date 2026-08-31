@@ -1,139 +1,80 @@
 # Sentiment Analysis for Product Reviews
 
-A high-performance sentiment analysis tool for product reviews, achieving 92%+ accuracy on datasets with 50,000+ reviews.
+A Streamlit-based NLP application for exploring, training, comparing, and using classical sentiment classifiers on product-review data.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+## Current status
 
-## Features
+**Phase 1: trustworthy foundation.** The earlier unsupported `92%+ accuracy` headline has been removed. Performance claims will return only after Phase 2 introduces a frozen, reproducible benchmark with identified data, splits, metrics, and artifacts.
 
-- **High Accuracy**: Optimized Logistic Regression model achieving 92%+ accuracy on large datasets
-- **Scalable Processing**: Efficiently handles CSV files up to 350MB using chunked processing
-- **Comprehensive NLP Pipeline**: Text preprocessing, feature extraction, and model training
-- **Interactive Dashboard**: Streamlit-based UI for data exploration, model training, and predictions
-- **Memory Efficient**: Smart memory management for large datasets
-- **Feature Importance**: Visualization of the most influential words for sentiment prediction
-- **Batch Predictions**: Process large sets of reviews in batches
+Phase 1 establishes explicit label contracts, a single canonical preprocessing implementation, deterministic in-memory model training, macro F1 and balanced accuracy, strict CSV parsing, honest probability handling, modern packaging, CI, and an explicit model-artifact trust boundary.
 
-## Demo
+## Label contracts
 
-![Demo GIF](https://via.placeholder.com/800x400?text=Demo+GIF+Coming+Soon)
+Numeric labels are not interpreted by value alone:
 
-## Setup Instructions
+| Schema | Meaning |
+| --- | --- |
+| `binary_01` | `0 = negative`, `1 = positive` |
+| `stars_1_to_5` | `1-2 = negative`, `3 = neutral`, `4-5 = positive` |
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/sentiment-analysis-product-reviews.git
-   cd sentiment-analysis-product-reviews
-   ```
+`auto` inference accepts binary values only in clear label/sentiment-style columns and star values only in rating/star/score-style columns. Ambiguous numeric columns raise an error instead of risking incorrect ground truth. Unknown text labels are rejected rather than silently converted to neutral.
 
-2. Create and activate a virtual environment:
-   ```bash
-   # Create virtual environment
-   python -m venv .venv
-   
-   # Activate on Windows
-   .venv\Scripts\activate
-   
-   # Activate on macOS/Linux
-   source .venv/bin/activate
-   ```
+## Models
 
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   
-   # Download required NLTK data
-   python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('wordnet')"
-   
-   # Download spaCy model
-   python -m spacy download en_core_web_sm
-   ```
+The current classical model set is Logistic Regression, Multinomial Naive Bayes, Linear SVM, and Random Forest. TF-IDF is used for normal training and HashingVectorizer supports bounded-memory processing.
 
-4. Run the application:
-   ```bash
-   streamlit run main.py
-   ```
+Phase 1 does **not** claim that any model is best. Phase 2 will establish the benchmark and baseline ladder.
 
-## Requirements
+## Setup
 
-- Python 3.8+
-- 4GB+ RAM (8GB recommended for datasets with 50,000+ reviews)
-- Dependencies listed in `requirements.txt`
+Python 3.11+ is required.
 
-## Usage Examples
+```bash
+git clone https://github.com/AaryaMody1301/Sentiment-Analysis-for-Product-Reviews.git
+cd Sentiment-Analysis-for-Product-Reviews
+python -m venv .venv
+python -m pip install --upgrade pip
+python -m pip install -e .
+```
 
-### Training on a 50,000 Review Dataset
+Optional WordNet lemmatization:
 
-1. Upload or select your CSV file containing 50,000 reviews
-2. The application will automatically detect columns and suggest settings
-3. Navigate to the "Model Training" page
-4. Select "Logistic Regression" as the model
-5. Enable "Perform hyperparameter tuning" for optimal accuracy
-6. Click "Train Model" and monitor progress
+```bash
+python -m nltk.downloader wordnet
+```
 
-### Making Predictions
+Run the app:
 
-1. Navigate to the "Prediction" page
-2. Input a review text or upload a CSV file with reviews
-3. Click "Predict" to get sentiment predictions and confidence scores
+```bash
+streamlit run main.py
+```
 
-### Batch Prediction for Large Files
+## Development
 
-1. Navigate to the "Large File Processing" page
-2. Upload or select your large CSV file
-3. Adjust chunk size and other parameters if needed
-4. Click "Process and Train Model"
-5. Use "Batch Prediction" to process new files
+```bash
+python -m pip install -e ".[dev]"
+python -m compileall -q src main.py tests
+python -m pytest -q
+python -m pip check
+```
 
-## Project Structure
+CI runs these checks on Python 3.11 and 3.13.
 
-- `src/` - Source code
-  - `app.py` - Streamlit application and UI components
-  - `model_training.py` - Model training and evaluation logic
-  - `nlp_processing.py` - Text preprocessing and feature extraction
-  - `utils.py` - Helper functions
-  - `chunked_processing.py` - Processing large files in chunks
-- `tests/` - Unit tests
-- `datasets/` - Sample datasets
-- `models/` - Saved models
-- `main.py` - Application entry point
+## Data and evidence
 
-## Contribution Guidelines
+`datasets/sample_reviews.csv` is a demonstration dataset, not a benchmark. Large/raw datasets should remain outside Git and must have documented provenance before they are used for release claims. CSV parsing is strict: malformed input raises an error instead of silently dropping records.
 
-We welcome contributions to improve this project! Here's how you can help:
+## Model persistence and trust
 
-1. **Fork the repository**
-2. **Create a new branch**: `git checkout -b feature/your-feature-name`
-3. **Make your changes**
-4. **Run tests**: `pytest tests/`
-5. **Commit your changes**: `git commit -m "Add feature: your feature description"`
-6. **Push to your fork**: `git push origin feature/your-feature-name`
-7. **Create a Pull Request**
+Saved `.joblib` models are a compatibility feature. `joblib` uses pickle semantics, so loading an untrusted artifact can execute code. Only load models you created or fully trust. See [SECURITY.md](SECURITY.md).
 
-Please ensure your code follows our style guidelines and includes appropriate tests.
+## Roadmap
 
-### Code Style
-
-- Follow PEP 8 guidelines
-- Include docstrings for functions and classes
-- Write meaningful commit messages
+- **Phase 1** - correctness, deterministic behavior, packaging, tests, CI
+- **Phase 2** - reproducible external benchmark and evidence-backed model comparison
+- **Phase 3** - inference/product redesign, calibrated confidence, error analysis
+- **Phase 4** - release hardening, provenance/model cards, safer persistence, v1.0.0
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgements
-
-- NLTK and scikit-learn for providing excellent NLP and ML libraries
-- Streamlit for the interactive web application framework
-
-## Achieving 92% Accuracy
-
-This project achieves 92%+ accuracy through:
-- TF-IDF vectorization with bigrams (unigrams + bigrams)
-- Logistic Regression with optimized hyperparameters
-- Comprehensive text preprocessing with negation handling
-- Proper handling of class imbalance
-
-For very large datasets, the system automatically falls back to memory-efficient processing using HashingVectorizer and chunked training.
+MIT. See [LICENSE](LICENSE).
