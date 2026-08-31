@@ -19,6 +19,7 @@ from src.safe_persistence import (
     inspect_safe_inference_bundle,
     load_safe_inference_bundle,
     save_safe_inference_bundle,
+    unapproved_safe_inference_types,
 )
 
 st.set_page_config(page_title="Reliable Inference", page_icon="R", layout="wide")
@@ -159,17 +160,27 @@ with bundle_tab:
             format_func=lambda path: path.name,
         )
         try:
-            unknown_types = inspect_safe_inference_bundle(selected_safe)
+            reported_types = inspect_safe_inference_bundle(selected_safe)
+            unapproved_types = unapproved_safe_inference_types(selected_safe)
         except Exception as exc:
             st.error(f"Could not inspect artifact: {exc}")
-            unknown_types = ("inspection failed",)
-        if unknown_types:
+            reported_types = ()
+            unapproved_types = ("inspection failed",)
+
+        if unapproved_types:
             st.error(
-                "This file contains serialized types that are not trusted by default and will not be loaded: "
-                + ", ".join(unknown_types)
+                "This file contains serialized types outside the reviewed allowlist and will not be loaded: "
+                + ", ".join(unapproved_types)
             )
         else:
-            st.caption("Serialized-type inspection passed; no unknown types were reported by skops.")
+            if reported_types:
+                st.caption(
+                    "Serialized-type inspection found only reviewed scikit-learn calibration internals: "
+                    + ", ".join(reported_types)
+                )
+            else:
+                st.caption("Serialized-type inspection passed with default-trusted types only.")
+
             manifest_ok, manifest_message = verify_artifact_manifest(selected_safe)
             if manifest_ok:
                 st.caption(f"Provenance integrity: {manifest_message}.")
