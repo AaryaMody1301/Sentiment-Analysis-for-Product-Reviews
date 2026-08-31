@@ -17,6 +17,8 @@ Every generated model card records:
 - artifact SHA-256, code revision when discoverable, and a companion runtime-version manifest;
 - the persistence security boundary between preferred `.skops` artifacts and legacy pickle/joblib compatibility files.
 
+Preferred artifacts are inspected with `skops.io.get_untrusted_types()`. The loader accepts default-trusted types plus only the exact scikit-learn calibration/CV implementation names documented in `SECURITY.md`; any other reported type is rejected rather than automatically trusted.
+
 ## Evidence rules
 
 A model card must not turn a local holdout result into a claim about the full Amazon Polarity dataset. Repository-level benchmark claims require the committed Phase 2 result, its frozen dataset revision, selection protocol, sample fingerprints, integrity checks, and runtime metadata.
