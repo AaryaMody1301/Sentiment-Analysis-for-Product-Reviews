@@ -11,6 +11,19 @@ from src.inference import BUNDLE_SCHEMA_VERSION, InferenceBundle, PreprocessingC
 
 SAFE_ARTIFACT_SCHEMA_VERSION = 1
 
+# skops 0.14 reports these fitted scikit-learn calibration/CV implementation
+# classes as unknown even though they are part of the framework model produced
+# by CalibratedClassifierCV. Keep this static and exact: never trust the entire
+# set returned by get_untrusted_types(). New names must be reviewed explicitly.
+REVIEWED_SKLEARN_INTERNAL_TYPES = frozenset(
+    {
+        "sklearn.calibration._CalibratedClassifier",
+        "sklearn.calibration._SigmoidCalibration",
+        "sklearn.calibration._TemperatureScaling",
+        "sklearn.model_selection._split.StratifiedKFold",
+    }
+)
+
 
 def _safe_name(name: str) -> str:
     value = re.sub(r"[^a-zA-Z0-9._-]+", "_", name.strip()).strip("._")
@@ -35,10 +48,27 @@ def _payload(bundle: InferenceBundle) -> dict[str, Any]:
 
 
 def inspect_safe_inference_bundle(path: str | Path) -> tuple[str, ...]:
+    """Return every type that skops does not trust by default."""
     artifact_path = Path(path)
     if not artifact_path.is_file():
         raise FileNotFoundError(artifact_path)
     return tuple(sorted(sio.get_untrusted_types(file=artifact_path)))
+
+
+def reviewed_safe_inference_types(path: str | Path) -> tuple[str, ...]:
+    return tuple(
+        value
+        for value in inspect_safe_inference_bundle(path)
+        if value in REVIEWED_SKLEARN_INTERNAL_TYPES
+    )
+
+
+def unapproved_safe_inference_types(path: str | Path) -> tuple[str, ...]:
+    return tuple(
+        value
+        for value in inspect_safe_inference_bundle(path)
+        if value not in REVIEWED_SKLEARN_INTERNAL_TYPES
+    )
 
 
 def save_safe_inference_bundle(
@@ -46,19 +76,19 @@ def save_safe_inference_bundle(
     bundle_name: str,
     models_dir: str | Path = "models",
 ) -> str:
-    """Persist an inference bundle using skops and reject unknown serialized types."""
+    """Persist with skops and reject every non-reviewed serialized type."""
     directory = Path(models_dir)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{_safe_name(bundle_name)}.inference.skops"
     sio.dump(_payload(bundle), path)
 
-    unknown_types = inspect_safe_inference_bundle(path)
-    if unknown_types:
+    unapproved = unapproved_safe_inference_types(path)
+    if unapproved:
         path.unlink(missing_ok=True)
-        joined = ", ".join(unknown_types)
+        joined = ", ".join(unapproved)
         raise RuntimeError(
-            "The generated skops artifact contains types that are not trusted by default: "
-            f"{joined}. The file was removed instead of weakening the trust policy."
+            "The generated skops artifact contains serialized types outside the reviewed "
+            f"allowlist: {joined}. The file was removed instead of expanding trust automatically."
         )
     return str(path)
 
@@ -99,18 +129,20 @@ def _validate_payload(payload: object) -> dict[str, Any]:
 
 
 def load_safe_inference_bundle(path: str | Path) -> InferenceBundle:
-    """Load only a skops artifact whose serialized types are trusted by default."""
+    """Load only default-trusted types plus the static reviewed sklearn allowlist."""
     artifact_path = Path(path)
-    unknown_types = inspect_safe_inference_bundle(artifact_path)
-    if unknown_types:
-        joined = ", ".join(unknown_types)
+    unapproved = unapproved_safe_inference_types(artifact_path)
+    if unapproved:
+        joined = ", ".join(unapproved)
         raise ValueError(
-            "Refusing to load this artifact because it contains untrusted serialized types: "
-            f"{joined}. Review the artifact outside the application before deciding whether "
-            "those types should be trusted."
+            "Refusing to load this artifact because it contains serialized types outside "
+            f"the reviewed allowlist: {joined}. Review those types before changing policy."
         )
 
-    payload = _validate_payload(sio.load(artifact_path, trusted=None))
+    reviewed = reviewed_safe_inference_types(artifact_path)
+    payload = _validate_payload(
+        sio.load(artifact_path, trusted=list(reviewed) if reviewed else None)
+    )
     preprocessing = PreprocessingConfig(**payload["preprocessing"])
     return InferenceBundle(
         model=payload["model"],
