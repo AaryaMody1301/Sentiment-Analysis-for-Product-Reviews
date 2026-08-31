@@ -8,15 +8,27 @@ version = "0.1.0"
 description = "Evidence-first product-review sentiment analysis with explicit label contracts."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+keywords = ["sentiment-analysis", "nlp", "scikit-learn", "streamlit", "reproducibility"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
 dependencies = [
   "altair>=5.2,<6", "joblib>=1.4,<2", "matplotlib>=3.10,<4", "nltk>=3.9,<4",
   "numpy>=1.26,<3", "pandas>=2.2,<3", "psutil>=5.9,<8", "scikit-learn>=1.8,<2",
-  "streamlit>=1.62,<2", "tqdm>=4.66,<5", "wordcloud>=1.9,<2"
+  "skops==0.14.0", "streamlit>=1.62,<2", "tqdm>=4.66,<5", "wordcloud>=1.9,<2"
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3,<9"]
 benchmark = ["datasets==5.0.1"]
+
+[project.urls]
+Repository = "https://github.com/AaryaMody1301/Sentiment-Analysis-for-Product-Reviews"
+Issues = "https://github.com/AaryaMody1301/Sentiment-Analysis-for-Product-Reviews/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
