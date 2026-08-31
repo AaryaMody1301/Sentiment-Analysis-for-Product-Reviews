@@ -1,64 +1,48 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
 *.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
+build/
+dist/
 
-# Virtual Environment
+# Environments and local config
 .env
-.venv
-env/
+.env.*
+!.env.example
+.venv/
 venv/
-ENV/
+env/
 
-# IDE files
+# Tool caches
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / OS
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Distribution / packaging
-.Python
-*.manifest
-*.spec
-
-# Logs
-*.log
-logs/
-
-# Local development settings
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Project specific
-datasets/Product Reviews.csv
-models/*.joblib
-models/*.pkl
-*.csv
-*.tsv
-!requirements.txt
-
-# OS specific
 .DS_Store
 Thumbs.db
+
+# Runtime artifacts
+*.log
+logs/
+.memory_warning_shown
+models/
+*.joblib
+*.pkl
+*.pickle
+
+# Local data; keep only the reviewed sample
+datasets/*.csv
+!datasets/sample_reviews.csv
+datasets/raw/
+
+# Temporary files
+*.tmp
+*.zip
