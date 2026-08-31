@@ -56,7 +56,7 @@ Evaluation includes macro F1, balanced accuracy, accuracy, macro precision/recal
 
 ## Safe persistence and provenance
 
-Preferred inference artifacts use `skops==0.14.0` and end in `.inference.skops`. The application inspects every preferred artifact with `skops.io.get_untrusted_types()` and refuses to load it if unknown serialized types are present. It does **not** automatically trust whatever a file requests.
+Preferred inference artifacts use `skops==0.14.0` and end in `.inference.skops`. The application inspects each preferred artifact with `skops.io.get_untrusted_types()`. Default-trusted types are accepted, and the only additional accepted names are a static reviewed allowlist of scikit-learn calibration internals produced by this project's `CalibratedClassifierCV` path. Any other reported type is rejected; the application never auto-trusts the full set requested by an arbitrary file.
 
 When a preferred bundle is saved, the Reliable Inference page also writes:
 
