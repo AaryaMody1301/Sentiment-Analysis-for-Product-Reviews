@@ -26,7 +26,5 @@ jobs:
       - run: python -m compileall -q src main.py pages tests
       - run: python -m pytest -q
       - run: python -m src.release --check candidate
-      - name: Verify v1 release gate
-        if: github.event_name == 'pull_request' && github.head_ref == 'phase-5-v1-release'
-        run: python -m src.release --check release
+      - run: python -m src.release --check release
       - run: python -m pip check
