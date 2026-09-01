@@ -1,6 +1,6 @@
 # Contributing to Sentiment Analysis for Product Reviews
 
-Contributions should preserve the repository's evidence-first and security-first contracts: explicit label semantics, deterministic evaluation where practical, train-only fitting, honest confidence semantics, and no committed generated model artifacts.
+Contributions should preserve the repository's evidence-first and security-first contracts: explicit label semantics, deterministic evaluation where practical, train-only fitting, honest confidence semantics, and no committed generated artifacts.
 
 ## Development setup
 
@@ -18,10 +18,11 @@ Run the same checks used by CI:
 python -m compileall -q src main.py pages tests
 python -m pytest -q
 python -m src.release --check candidate
+python -m src.release --check release
 python -m pip check
 ```
 
-The external Phase 2 benchmark needs the optional benchmark dependencies:
+The external benchmark needs the optional benchmark dependency:
 
 ```bash
 python -m pip install -e ".[benchmark]"
@@ -34,7 +35,7 @@ Do not use the smoke benchmark for performance claims.
 
 Keep changes focused and add regression tests for behavior changes. Update documentation when an interface, persistence contract, label contract, benchmark protocol, or security assumption changes.
 
-Do not commit generated `.joblib`, `.pkl`, `.pickle`, or `.skops` model artifacts. Preferred `.skops` artifacts and their provenance sidecars are runtime outputs, not source files.
+Do not commit generated `.joblib`, `.pkl`, `.pickle`, `.skops`, `.pyc`, `__pycache__`, logs, or local model sidecars. The supported model format is inspected `.inference.skops`; the Streamlit application does not expose pickle/joblib loading.
 
 Do not loosen the safe persistence loader by automatically trusting types reported by `skops.io.get_untrusted_types()`. Unknown types require explicit human review outside the application.
 
@@ -46,4 +47,4 @@ A local holdout score from an uploaded CSV must not be described as a score on t
 
 ## Security reports
 
-Do not attach malicious serialized artifacts to public issues. Follow the reporting guidance in `SECURITY.md`.
+Do not attach malicious serialized artifacts to public issues. Follow `SECURITY.md`.
