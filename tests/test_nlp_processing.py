@@ -1,15 +1,21 @@
 import pandas as pd
 import pytest
 
-from src.nlp_processing import LabelSchema, normalize_sentiment_labels, preprocess_text, resolve_label_schema
+from src.nlp_processing import (
+    LabelSchema,
+    normalize_sentiment_labels,
+    normalize_sentiment_series,
+    preprocess_text,
+    resolve_label_schema,
+)
 
 
 def test_preprocess_text_basic():
-    assert preprocess_text("This is a TEST with punctuation!!!", perform_lemmatization=False) == "test punctuation"
+    assert preprocess_text("This is a TEST with punctuation!!!") == "test punctuation"
 
 
 def test_preprocess_text_negation():
-    processed = preprocess_text("This product is not good and isn't working.", handle_negations=True, perform_lemmatization=False)
+    processed = preprocess_text("This product is not good and isn't working.", handle_negations=True)
     assert "not_good" in processed
     assert "not_working" in processed
 
@@ -23,6 +29,15 @@ def test_star_rating_contract():
 def test_binary_contract():
     df = pd.DataFrame({"label": [0, 1]})
     assert normalize_sentiment_labels(df, "label")["label"].tolist() == ["negative", "positive"]
+
+
+@pytest.mark.parametrize(
+    ("values", "schema"),
+    [([0, 0.5, 1], LabelSchema.BINARY_01), ([1, 2.9, 5], LabelSchema.STARS_1_TO_5)],
+)
+def test_explicit_numeric_schemas_reject_fractional_values(values, schema):
+    with pytest.raises(ValueError, match="integer-valued"):
+        normalize_sentiment_series(pd.Series(values), schema=schema)
 
 
 def test_ambiguous_numeric_labels_raise():
