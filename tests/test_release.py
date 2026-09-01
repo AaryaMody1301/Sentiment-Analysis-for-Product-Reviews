@@ -239,6 +239,13 @@ def test_candidate_release_check_rejects_generated_and_compiled_artifacts(tmp_pa
     assert any("compiled Python artifact" in issue for issue in issues)
 
 
+def test_candidate_release_check_rejects_serialized_artifact_outside_models(tmp_path):
+    _write_candidate_tree(tmp_path)
+    (tmp_path / "unexpected.pkl").write_bytes(b"not a real model")
+    issues = release_issues(tmp_path, mode="candidate")
+    assert any("generated model artifact" in issue for issue in issues)
+
+
 def test_release_mode_requires_valid_evidence_and_final_version(tmp_path):
     _write_candidate_tree(tmp_path)
     benchmark = tmp_path / "benchmarks" / "results" / "amazon_polarity_phase2_v1.json"

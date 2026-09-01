@@ -433,8 +433,7 @@ def release_issues(root: str | Path = ".", *, mode: str = "candidate") -> list[s
             relative = path.relative_to(base)
         except ValueError:
             relative = path
-        normalized = relative.as_posix()
-        if path.suffix.lower() in GENERATED_MODEL_SUFFIXES and "models/" in f"/{normalized}":
+        if path.suffix.lower() in GENERATED_MODEL_SUFFIXES:
             issues.append(f"generated model artifact is tracked in repository tree: {relative}")
         if path.suffix.lower() == ".pyc" or "__pycache__" in relative.parts:
             issues.append(f"compiled Python artifact is tracked in repository tree: {relative}")
