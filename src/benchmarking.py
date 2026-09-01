@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import hashlib
 import importlib.metadata
 import json
@@ -81,34 +82,40 @@ def collect_balanced_rows(
 
     counts = {label: 0 for label in LABEL_NAMES}
     selected: list[dict[str, object]] = []
+    iterator = iter(rows)
 
-    for row in rows:
-        if "label" not in row or "text" not in row:
-            raise KeyError("Benchmark rows must contain 'label' and 'text'.")
+    try:
+        for row in iterator:
+            if "label" not in row or "text" not in row:
+                raise KeyError("Benchmark rows must contain 'label' and 'text'.")
 
-        try:
-            label = int(row["label"])
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"Invalid Amazon Polarity label: {row['label']!r}") from exc
-        if label not in LABEL_NAMES:
-            raise ValueError(f"Unexpected Amazon Polarity label: {label!r}")
-        if counts[label] >= per_class:
-            continue
+            try:
+                label = int(row["label"])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Invalid Amazon Polarity label: {row['label']!r}") from exc
+            if label not in LABEL_NAMES:
+                raise ValueError(f"Unexpected Amazon Polarity label: {label!r}")
+            if counts[label] >= per_class:
+                continue
 
-        text = str(row["text"]).strip()
-        if not text:
-            continue
+            text = str(row["text"]).strip()
+            if not text:
+                continue
 
-        label_text = row.get("label_text")
-        if label_text is not None and str(label_text).strip().lower() != LABEL_NAMES[label]:
-            raise ValueError(
-                f"Label contract mismatch: {label!r} does not match {label_text!r}."
-            )
+            label_text = row.get("label_text")
+            if label_text is not None and str(label_text).strip().lower() != LABEL_NAMES[label]:
+                raise ValueError(
+                    f"Label contract mismatch: {label!r} does not match {label_text!r}."
+                )
 
-        selected.append({"text": text, "label": label})
-        counts[label] += 1
-        if all(count == per_class for count in counts.values()):
-            break
+            selected.append({"text": text, "label": label})
+            counts[label] += 1
+            if all(count == per_class for count in counts.values()):
+                break
+    finally:
+        close = getattr(iterator, "close", None)
+        if callable(close):
+            close()
 
     if any(count != per_class for count in counts.values()):
         raise RuntimeError(
@@ -285,7 +292,11 @@ def _load_balanced_split(
         streaming=True,
     )
     stream = stream.shuffle(seed=seed, buffer_size=shuffle_buffer)
-    return collect_balanced_rows(stream, per_class)
+    try:
+        return collect_balanced_rows(stream, per_class)
+    finally:
+        del stream
+        gc.collect()
 
 
 def build_benchmark_result(
