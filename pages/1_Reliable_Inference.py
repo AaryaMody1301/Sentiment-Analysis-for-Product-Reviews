@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import warnings
 from pathlib import Path
 
@@ -13,20 +14,31 @@ from src.inference import (
     train_inference_bundle,
 )
 from src.model_training import get_available_models
+from src.release import dataset_provenance, verify_artifact_manifest, write_release_sidecars
+from src.safe_persistence import (
+    inspect_safe_inference_bundle,
+    load_safe_inference_bundle,
+    save_safe_inference_bundle,
+    unapproved_safe_inference_types,
+)
 
 st.set_page_config(page_title="Reliable Inference", page_icon="R", layout="wide")
 st.title("Reliable Sentiment Inference")
 st.caption(
-    "Train and use a model with a fixed preprocessing contract and explicit confidence semantics."
+    "Train and use a model with a fixed preprocessing contract, explicit confidence semantics, "
+    "and release-grade artifact provenance."
 )
 
-source_tab, bundle_tab = st.tabs(["Train bundle", "Load trusted bundle"])
+source_tab, bundle_tab = st.tabs(["Train bundle", "Load local bundle"])
 
 with source_tab:
     uploaded = st.file_uploader("Upload a CSV dataset", type=["csv"], key="reliable_csv")
+    data_provenance = None
     if uploaded is not None:
         try:
-            frame = pd.read_csv(uploaded)
+            raw_data = uploaded.getvalue()
+            frame = pd.read_csv(io.BytesIO(raw_data))
+            data_provenance = dataset_provenance(uploaded.name, raw_data, rows=len(frame))
         except Exception as exc:
             st.error(f"Could not read CSV: {exc}")
             frame = None
@@ -123,6 +135,8 @@ with source_tab:
                     calibration_method=calibration_method,
                     calibration_cv=int(calibration_cv),
                 )
+                if data_provenance is not None:
+                    bundle.metadata["training_data"] = data_provenance
             except Exception as exc:
                 st.error(f"Training failed: {exc}")
             else:
@@ -133,25 +147,83 @@ with source_tab:
 
 with bundle_tab:
     model_dir = Path("models")
-    saved = sorted(model_dir.glob("*.inference.joblib")) if model_dir.is_dir() else []
-    if not saved:
-        st.info("No saved inference bundles were found in models/.")
+    safe_saved = sorted(model_dir.glob("*.inference.skops")) if model_dir.is_dir() else []
+    legacy_saved = sorted(model_dir.glob("*.inference.joblib")) if model_dir.is_dir() else []
+
+    st.subheader("Preferred safe artifacts")
+    if not safe_saved:
+        st.info("No `.inference.skops` bundles were found in models/.")
     else:
-        selected = st.selectbox("Trusted local bundle", saved, format_func=lambda path: path.name)
-        st.warning(
-            "Joblib uses pickle semantics. Load only an artifact created by this project or another fully trusted source."
+        selected_safe = st.selectbox(
+            "Local skops bundle",
+            safe_saved,
+            format_func=lambda path: path.name,
         )
-        if st.button("Load selected trusted bundle"):
-            try:
-                with warnings.catch_warnings(record=True):
-                    bundle = load_inference_bundle(selected)
-            except Exception as exc:
-                st.error(f"Could not load bundle: {exc}")
+        try:
+            reported_types = inspect_safe_inference_bundle(selected_safe)
+            unapproved_types = unapproved_safe_inference_types(selected_safe)
+        except Exception as exc:
+            st.error(f"Could not inspect artifact: {exc}")
+            reported_types = ()
+            unapproved_types = ("inspection failed",)
+
+        if unapproved_types:
+            st.error(
+                "This file contains serialized types outside the reviewed allowlist and will not be loaded: "
+                + ", ".join(unapproved_types)
+            )
+        else:
+            if reported_types:
+                st.caption(
+                    "Serialized-type inspection found only reviewed scikit-learn calibration internals: "
+                    + ", ".join(reported_types)
+                )
             else:
-                st.session_state["reliable_bundle"] = bundle
-                st.session_state.pop("reliable_metrics", None)
-                st.session_state.pop("reliable_errors", None)
-                st.success(f"Loaded {selected.name}")
+                st.caption("Serialized-type inspection passed with default-trusted types only.")
+
+            manifest_ok, manifest_message = verify_artifact_manifest(selected_safe)
+            if manifest_ok:
+                st.caption(f"Provenance integrity: {manifest_message}.")
+            else:
+                st.warning(
+                    f"Provenance integrity: {manifest_message}. The artifact can still be inspected, "
+                    "but provenance is incomplete or inconsistent."
+                )
+            if st.button("Load inspected skops bundle"):
+                try:
+                    bundle = load_safe_inference_bundle(selected_safe)
+                except Exception as exc:
+                    st.error(f"Could not load bundle: {exc}")
+                else:
+                    st.session_state["reliable_bundle"] = bundle
+                    st.session_state.pop("reliable_metrics", None)
+                    st.session_state.pop("reliable_errors", None)
+                    st.success(f"Loaded {selected_safe.name}")
+
+    with st.expander("Legacy joblib compatibility"):
+        st.warning(
+            "Joblib uses pickle semantics and can execute code while loading. Use this path only "
+            "for a file you created yourself or otherwise fully trust."
+        )
+        if not legacy_saved:
+            st.info("No legacy `.inference.joblib` bundles were found in models/.")
+        else:
+            selected_legacy = st.selectbox(
+                "Trusted legacy bundle",
+                legacy_saved,
+                format_func=lambda path: path.name,
+            )
+            if st.button("Load fully trusted legacy bundle"):
+                try:
+                    with warnings.catch_warnings(record=True):
+                        bundle = load_inference_bundle(selected_legacy)
+                except Exception as exc:
+                    st.error(f"Could not load legacy bundle: {exc}")
+                else:
+                    st.session_state["reliable_bundle"] = bundle
+                    st.session_state.pop("reliable_metrics", None)
+                    st.session_state.pop("reliable_errors", None)
+                    st.success(f"Loaded {selected_legacy.name}")
 
 bundle = st.session_state.get("reliable_bundle")
 metrics = st.session_state.get("reliable_metrics")
@@ -210,11 +282,30 @@ if bundle is not None:
         else:
             st.dataframe(bundle.predict_frame(reviews), use_container_width=True)
 
+    st.subheader("Save artifact")
     bundle_name = st.text_input("Bundle name", value="sentiment-inference")
-    if st.button("Save trusted local bundle"):
+    if st.button("Save preferred skops bundle", type="primary"):
         try:
-            path = save_inference_bundle(bundle, bundle_name)
+            path = save_safe_inference_bundle(bundle, bundle_name)
+            manifest_path, card_path = write_release_sidecars(
+                bundle,
+                metrics,
+                path,
+                training_data=bundle.metadata.get("training_data"),
+            )
         except Exception as exc:
-            st.error(f"Could not save bundle: {exc}")
+            st.error(f"Could not save safe bundle: {exc}")
         else:
-            st.success(f"Saved to {path}")
+            st.success(f"Saved {path}")
+            st.caption(f"Provenance manifest: {manifest_path}")
+            st.caption(f"Model card: {card_path}")
+
+    with st.expander("Save legacy joblib compatibility bundle"):
+        st.warning("Only use legacy joblib persistence for artifacts that will remain fully trusted.")
+        if st.button("Save legacy joblib bundle"):
+            try:
+                path = save_inference_bundle(bundle, bundle_name)
+            except Exception as exc:
+                st.error(f"Could not save legacy bundle: {exc}")
+            else:
+                st.success(f"Saved legacy compatibility artifact to {path}")
