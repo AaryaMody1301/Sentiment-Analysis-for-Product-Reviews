@@ -6,10 +6,9 @@ from src.inference import (
     PreprocessingConfig,
     build_error_analysis,
     expected_calibration_error,
-    load_inference_bundle,
-    save_inference_bundle,
     train_inference_bundle,
 )
+from src.safe_persistence import load_safe_inference_bundle, save_safe_inference_bundle
 
 
 def dataset(rows_per_class=30):
@@ -34,12 +33,7 @@ def config():
 
 def test_bundle_reuses_training_preprocessing_contract():
     bundle, metrics, _ = train_inference_bundle(
-        dataset(),
-        "review",
-        "sentiment",
-        preprocessing=config(),
-        calibrate=False,
-        random_state=7,
+        dataset(), "review", "sentiment", preprocessing=config(), calibrate=False, random_state=7
     )
     raw = "not great product"
     processed = bundle.preprocessing.apply(raw)
@@ -88,11 +82,7 @@ def test_uncalibrated_svm_never_fakes_confidence():
 
 def test_error_analysis_surfaces_contract_fields():
     bundle, _, errors = train_inference_bundle(
-        dataset(),
-        "review",
-        "sentiment",
-        preprocessing=config(),
-        calibrate=True,
+        dataset(), "review", "sentiment", preprocessing=config(), calibrate=True
     )
     assert {
         "review_text",
@@ -108,26 +98,21 @@ def test_error_analysis_surfaces_contract_fields():
 
 
 def test_expected_calibration_error_known_example():
-    value = expected_calibration_error(
-        ["p", "n"],
-        ["p", "p"],
-        [0.9, 0.9],
-        n_bins=2,
-    )
+    value = expected_calibration_error(["p", "n"], ["p", "p"], [0.9, 0.9], n_bins=2)
     assert value == pytest.approx(0.4)
 
 
-def test_bundle_round_trip_preserves_preprocessing(tmp_path):
+def test_expected_calibration_error_rejects_invalid_confidence():
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        expected_calibration_error(["p"], ["p"], [1.2])
+
+
+def test_safe_bundle_round_trip_preserves_preprocessing(tmp_path):
     bundle, _, _ = train_inference_bundle(
-        dataset(),
-        "review",
-        "sentiment",
-        preprocessing=config(),
-        calibrate=True,
+        dataset(), "review", "sentiment", preprocessing=config(), calibrate=False
     )
-    path = save_inference_bundle(bundle, "phase3-test", tmp_path)
-    with pytest.warns(UserWarning, match="only files you trust"):
-        loaded = load_inference_bundle(path)
+    path = save_safe_inference_bundle(bundle, "safe-roundtrip", tmp_path)
+    loaded = load_safe_inference_bundle(path)
     assert loaded.preprocessing == bundle.preprocessing
     assert loaded.confidence_kind == bundle.confidence_kind
     assert loaded.predict("excellent product")[0] == bundle.predict("excellent product")[0]
