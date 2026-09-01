@@ -37,6 +37,9 @@ models/
 *.joblib
 *.pkl
 *.pickle
+*.skops
+*.skops.manifest.json
+*.skops.model-card.md
 
 # Local data; keep only the reviewed sample
 datasets/*.csv

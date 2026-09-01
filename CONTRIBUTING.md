@@ -1,78 +1,49 @@
 # Contributing to Sentiment Analysis for Product Reviews
 
-Thank you for considering contributing to this project! Your help is greatly appreciated.
+Contributions should preserve the repository's evidence-first and security-first contracts: explicit label semantics, deterministic evaluation where practical, train-only fitting, honest confidence semantics, and no committed generated model artifacts.
 
-## Code of Conduct
-
-Please be respectful and considerate of others when contributing to this project. We welcome contributions from people of all backgrounds and experience levels.
-
-## How to Contribute
-
-There are many ways to contribute:
-
-1. **Report bugs**: Submit issues for any bugs you encounter
-2. **Suggest features**: Submit issues for features you'd like to see added
-3. **Improve documentation**: Help improve or fix documentation
-4. **Submit code changes**: Implement new features or fix bugs
-
-## Development Process
-
-1. **Fork the repository**
-2. **Clone your fork**:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/sentiment-analysis-product-reviews.git
-   cd sentiment-analysis-product-reviews
-   ```
-3. **Create a branch**:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-4. **Make your changes**
-5. **Test your changes**:
-   ```bash
-   pytest tests/
-   ```
-6. **Commit your changes**:
-   ```bash
-   git commit -m "Add feature: your feature description"
-   ```
-7. **Push to your fork**:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-8. **Create a Pull Request**
-
-## Pull Request Guidelines
-
-- Ensure your code follows the project's coding style (PEP 8)
-- Include comprehensive documentation
-- Add tests for new features
-- Update the README.md if necessary
-- Keep pull requests focused on a single change
-- Reference any relevant issues in your PR description
-
-## Running Tests
+## Development setup
 
 ```bash
-pytest tests/
+git clone https://github.com/AaryaMody1301/Sentiment-Analysis-for-Product-Reviews.git
+cd Sentiment-Analysis-for-Product-Reviews
+python -m venv .venv
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
 ```
 
-## Code Style
+Run the same checks used by CI:
 
-- Follow PEP 8 guidelines
-- Use descriptive variable names
-- Include docstrings for all functions, classes, and modules
-- Comment your code where necessary
+```bash
+python -m compileall -q src main.py pages tests
+python -m pytest -q
+python -m src.release --check candidate
+python -m pip check
+```
 
-## Git Commit Messages
+The external Phase 2 benchmark needs the optional benchmark dependencies:
 
-- Use the present tense ("Add feature" not "Added feature")
-- Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
-- Limit the first line to 72 characters or less
-- Reference issues and pull requests when appropriate
+```bash
+python -m pip install -e ".[benchmark]"
+python -m src.benchmarking --profile phase2
+```
 
-## Questions?
+Do not use the smoke benchmark for performance claims.
 
-If you have any questions about contributing, please open an issue with your question.
+## Pull requests
 
-Thank you for your contributions! 
+Keep changes focused and add regression tests for behavior changes. Update documentation when an interface, persistence contract, label contract, benchmark protocol, or security assumption changes.
+
+Do not commit generated `.joblib`, `.pkl`, `.pickle`, or `.skops` model artifacts. Preferred `.skops` artifacts and their provenance sidecars are runtime outputs, not source files.
+
+Do not loosen the safe persistence loader by automatically trusting types reported by `skops.io.get_untrusted_types()`. Unknown types require explicit human review outside the application.
+
+## Evidence and performance claims
+
+`datasets/sample_reviews.csv` is demonstration data only. Performance claims must point to reproducible benchmark evidence with an immutable dataset revision, selection protocol, split-integrity checks, sample fingerprints, metrics, and runtime metadata.
+
+A local holdout score from an uploaded CSV must not be described as a score on the full Amazon Polarity dataset.
+
+## Security reports
+
+Do not attach malicious serialized artifacts to public issues. Follow the reporting guidance in `SECURITY.md`.
