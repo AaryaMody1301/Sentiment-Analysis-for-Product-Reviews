@@ -1,72 +1,54 @@
-import unittest
+import zipfile
+
 import pandas as pd
-import sys
-import os
+import pytest
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.utils import deduplicate_column_names
+from src.utils import create_sample_dataset, deduplicate_column_names, extract_zip_file
 
-class TestUtils(unittest.TestCase):
-    def test_deduplicate_column_names_no_duplicates(self):
-        """Test deduplicate_column_names with no duplicate columns."""
-        df = pd.DataFrame({
-            'col1': [1, 2, 3],
-            'col2': [4, 5, 6],
-            'col3': [7, 8, 9]
-        })
-        
-        renamed_df, renamed_cols, has_duplicates = deduplicate_column_names(df)
-        
-        self.assertFalse(has_duplicates)
-        self.assertEqual(len(renamed_cols), 0)
-        self.assertEqual(list(renamed_df.columns), ['col1', 'col2', 'col3'])
-    
-    def test_deduplicate_column_names_with_duplicates(self):
-        """Test deduplicate_column_names with duplicate columns."""
-        # Create DataFrame with duplicate column names
-        df = pd.DataFrame([[1, 2, 3]], columns=['Id', 'Id', 'Value'])
-        
-        renamed_df, renamed_cols, has_duplicates = deduplicate_column_names(df)
-        
-        self.assertTrue(has_duplicates)
-        self.assertEqual(len(renamed_cols), 1)  # One column was renamed
-        self.assertEqual(list(renamed_df.columns), ['Id', 'Id_1', 'Value'])
-    
-    def test_deduplicate_column_names_multiple_duplicates(self):
-        """Test deduplicate_column_names with multiple duplicate columns."""
-        # Create DataFrame with multiple duplicate column names
-        df = pd.DataFrame([[1, 2, 3, 4, 5]], columns=['col', 'col', 'col', 'unique', 'unique'])
-        
-        renamed_df, renamed_cols, has_duplicates = deduplicate_column_names(df)
-        
-        self.assertTrue(has_duplicates)
-        self.assertEqual(len(renamed_cols), 2)  # Two columns were renamed
-        self.assertEqual(list(renamed_df.columns), ['col', 'col_1', 'col_2', 'unique', 'unique_4'])
-    
-    def test_deduplicate_column_names_preserves_data(self):
-        """Test that deduplicate_column_names preserves the original data."""
-        data = {'A': [1, 2], 'A': [3, 4], 'B': [5, 6]}
-        df = pd.DataFrame(data)
-        
-        renamed_df, renamed_cols, has_duplicates = deduplicate_column_names(df)
-        
-        # Check column names
-        self.assertEqual(list(renamed_df.columns), ['A', 'A_1', 'B'])
-        
-        # Check data is preserved
-        self.assertEqual(renamed_df.iloc[0, 0], 3)  # Original 'A' column got overwritten by the second 'A'
-        self.assertEqual(renamed_df.iloc[0, 1], 3)  # The renamed 'A_1' should have the second 'A' values
-        self.assertEqual(renamed_df.iloc[0, 2], 5)  # 'B' column data
-        
-    def test_deduplicate_column_names_empty_dataframe(self):
-        """Test deduplicate_column_names with an empty DataFrame."""
-        df = pd.DataFrame()
-        
-        renamed_df, renamed_cols, has_duplicates = deduplicate_column_names(df)
-        
-        self.assertFalse(has_duplicates)
-        self.assertEqual(len(renamed_cols), 0)
-        self.assertEqual(list(renamed_df.columns), [])
 
-if __name__ == '__main__':
-    unittest.main() 
+def test_deduplicate_column_names_no_duplicates_returns_original():
+    frame = pd.DataFrame({"a": [1], "b": [2]})
+    result, renamed, has_duplicates = deduplicate_column_names(frame)
+    assert result is frame
+    assert renamed == {}
+    assert has_duplicates is False
+
+
+def test_deduplicate_column_names_is_generic_and_preserves_data():
+    frame = pd.DataFrame(
+        [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]],
+        columns=["col", "col", "col", "unique", "unique"],
+    )
+    result, renamed, has_duplicates = deduplicate_column_names(frame)
+    assert list(result.columns) == ["col", "col_1", "col_2", "unique", "unique_1"]
+    assert result.to_numpy().tolist() == frame.to_numpy().tolist()
+    assert renamed == {"col": "col_2", "unique": "unique_1"}
+    assert has_duplicates is True
+
+
+def test_deduplicate_avoids_generated_name_collisions():
+    frame = pd.DataFrame([[1, 2, 3]], columns=["A", "A", "A_1"])
+    result, _, _ = deduplicate_column_names(frame)
+    assert list(result.columns) == ["A", "A_1", "A_1_1"]
+    assert result.columns.is_unique
+
+
+def test_create_sample_dataset_is_exact_and_deterministic(tmp_path):
+    source = tmp_path / "source.csv"
+    pd.DataFrame({"value": range(100)}).to_csv(source, index=False)
+    first = tmp_path / "first.csv"
+    second = tmp_path / "second.csv"
+    create_sample_dataset(source, first, sample_size=10, random_seed=7)
+    create_sample_dataset(source, second, sample_size=10, random_seed=7)
+    a = pd.read_csv(first)
+    b = pd.read_csv(second)
+    assert len(a) == 10
+    pd.testing.assert_frame_equal(a, b)
+
+
+def test_extract_zip_rejects_path_traversal(tmp_path):
+    archive = tmp_path / "unsafe.zip"
+    with zipfile.ZipFile(archive, "w") as handle:
+        handle.writestr("../escape.txt", "no")
+    with pytest.raises(ValueError, match="Unsafe zip member"):
+        extract_zip_file(archive, tmp_path / "out")
