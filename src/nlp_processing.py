@@ -47,6 +47,18 @@ def _normalized_scalar(value: object) -> str:
     return str(value).strip().lower()
 
 
+def _integer_numeric_label(value: object, *, schema: LabelSchema) -> int:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{schema.value} requires numeric labels, got {value!r}.") from exc
+    if not np.isfinite(numeric) or not numeric.is_integer():
+        raise ValueError(
+            f"{schema.value} requires finite integer-valued labels; got {value!r}."
+        )
+    return int(numeric)
+
+
 def infer_label_schema(values: Iterable[object], column_name: str = "") -> LabelSchema:
     series = pd.Series(list(values)).dropna()
     if series.empty:
@@ -65,9 +77,9 @@ def infer_label_schema(values: Iterable[object], column_name: str = "") -> Label
             raise ValueError(
                 "Unrecognized sentiment labels. Supply an explicit label schema."
             ) from exc
-        if not numeric.is_integer():
+        if not np.isfinite(numeric) or not numeric.is_integer():
             raise ValueError(
-                "Numeric sentiment labels must be integer-valued and use an explicit schema."
+                "Numeric sentiment labels must be finite integers and use an explicit schema."
             )
         numeric_values.add(int(numeric))
 
@@ -108,11 +120,7 @@ def normalize_sentiment_series(
                 raise ValueError(f"Unsupported text sentiment label: {value!r}")
             return _TEXT_MAP[key]
 
-        try:
-            numeric = int(float(value))
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"Expected a numeric sentiment label, got {value!r}.") from exc
-
+        numeric = _integer_numeric_label(value, schema=resolved)
         if resolved is LabelSchema.BINARY_01:
             if numeric not in (0, 1):
                 raise ValueError(f"binary_01 accepts only 0 or 1, got {value!r}.")
@@ -145,7 +153,7 @@ def preprocess_text(
     text: object,
     remove_stopwords: bool = True,
     perform_stemming: bool = False,
-    perform_lemmatization: bool = True,
+    perform_lemmatization: bool = False,
     handle_negations: bool = True,
 ) -> str:
     if pd.isna(text):
