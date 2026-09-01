@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import os
 import time
-import warnings
 from pathlib import Path
 from typing import Callable
 
-import joblib
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import HashingVectorizer
@@ -33,7 +31,6 @@ DEFAULT_MAX_TEST_SAMPLES = 10_000
 
 
 def detect_columns(df: pd.DataFrame) -> tuple[str | None, str | None]:
-    """Detect likely review-text and sentiment columns."""
     return _detect_columns(df)
 
 
@@ -77,9 +74,7 @@ def _collect_classes(
         if chunk.empty:
             continue
         normalized = normalize_sentiment_labels(
-            chunk,
-            sentiment_column,
-            schema=label_schema,
+            chunk, sentiment_column, schema=label_schema
         )
         classes.update(normalized[sentiment_column].unique().tolist())
     return sorted(classes), row_count
@@ -89,24 +84,19 @@ def process_large_file(
     file_path,
     text_column=None,
     sentiment_column=None,
-    chunksize=20000,
+    chunksize=20_000,
     test_size=0.2,
     remove_stopwords=True,
     perform_stemming=False,
-    perform_lemmatization=True,
+    perform_lemmatization=False,
     handle_negations=True,
     n_features=2**18,
     callback=None,
     random_state=DEFAULT_RANDOM_STATE,
     max_test_samples=DEFAULT_MAX_TEST_SAMPLES,
 ):
-    """Train an incremental sentiment model with a deterministic streaming split.
+    """Train a bounded-memory classifier with a deterministic streaming holdout."""
 
-    The file is scanned once to validate the label contract and discover the full
-    class set, then streamed a second time for training. Each row is assigned to
-    train or holdout data by a seeded RNG. Holdout rows are never passed to
-    ``partial_fit``.
-    """
     path = Path(file_path)
     if not path.is_file():
         raise FileNotFoundError(f"Dataset not found: {path}")
@@ -116,6 +106,8 @@ def process_large_file(
         raise ValueError("test_size must be between 0 and 1.")
     if n_features <= 0:
         raise ValueError("n_features must be positive.")
+    if max_test_samples <= 0:
+        raise ValueError("max_test_samples must be positive.")
 
     started = time.time()
     sample = pd.read_csv(path, nrows=min(5000, chunksize))
@@ -131,9 +123,7 @@ def process_large_file(
         )
 
     label_schema = resolve_label_schema(
-        sample[sentiment_column],
-        column_name=sentiment_column,
-        schema="auto",
+        sample[sentiment_column], column_name=sentiment_column, schema="auto"
     )
     _notify(
         callback,
@@ -167,23 +157,21 @@ def process_large_file(
     rows_trained = 0
     first_fit = True
 
-    reader = pd.read_csv(path, chunksize=chunksize)
-    for chunk_number, chunk in enumerate(reader, start=1):
+    for chunk_number, chunk in enumerate(
+        pd.read_csv(path, chunksize=chunksize), start=1
+    ):
         rows_seen += len(chunk)
         missing = {text_column, sentiment_column} - set(chunk.columns)
         if missing:
-            raise ValueError(f"Required columns missing from chunk {chunk_number}: {sorted(missing)}")
+            raise ValueError(
+                f"Required columns missing from chunk {chunk_number}: {sorted(missing)}"
+            )
 
         chunk = chunk.dropna(subset=[text_column, sentiment_column]).copy()
         if chunk.empty:
             continue
-
-        # Normalize labels before any split/sampling so raw ratings can never be
-        # compared against normalized class names.
         chunk = normalize_sentiment_labels(
-            chunk,
-            sentiment_column,
-            schema=label_schema,
+            chunk, sentiment_column, schema=label_schema
         )
         processed_texts = _preprocess_batch(
             chunk[text_column].tolist(),
@@ -204,9 +192,12 @@ def process_large_file(
                 holdout_mask[int(rng.integers(0, len(labels)))] = False
 
         train_mask = ~holdout_mask
-        train_texts = [text for text, keep in zip(processed_texts, train_mask, strict=True) if keep]
+        train_texts = [
+            text
+            for text, keep in zip(processed_texts, train_mask, strict=True)
+            if keep
+        ]
         train_labels = labels[train_mask]
-
         if train_texts:
             vectors = vectorizer.transform(train_texts)
             if first_fit:
@@ -222,10 +213,9 @@ def process_large_file(
             test_texts.extend(processed_texts[index] for index in holdout_indices)
             test_labels.extend(labels[holdout_indices].tolist())
 
-        progress = 0.08 + 0.82 * (rows_seen / max(total_rows, 1))
         _notify(
             callback,
-            progress,
+            0.08 + 0.82 * (rows_seen / max(total_rows, 1)),
             f"Processed chunk {chunk_number}: {rows_seen:,}/{total_rows:,} rows",
         )
 
@@ -244,7 +234,6 @@ def process_large_file(
             "labels": classes,
         }
     else:
-        _notify(callback, 0.93, f"Evaluating on {len(test_texts):,} untouched holdout rows")
         predictions = model.predict(vectorizer.transform(test_texts))
         metrics = {
             "accuracy": accuracy_score(test_labels, predictions),
@@ -276,11 +265,11 @@ def process_large_file(
             "label_schema": label_schema.value,
         }
     )
-    elapsed = time.time() - started
     _notify(
         callback,
         1.0,
-        f"Processing complete in {elapsed:.1f}s. Accuracy: {metrics['accuracy']:.4f}",
+        f"Processing complete in {time.time() - started:.1f}s. "
+        f"Accuracy: {metrics['accuracy']:.4f}",
     )
     return model, vectorizer, metrics
 
@@ -292,14 +281,15 @@ def predict_batch(
     text_column,
     remove_stopwords=True,
     perform_stemming=False,
-    perform_lemmatization=True,
+    perform_lemmatization=False,
     handle_negations=True,
     callback=None,
 ):
-    """Predict sentiment for a DataFrame or CSV path in bounded chunks."""
+    """Predict a DataFrame or CSV path in bounded chunks."""
+
     if isinstance(data, (str, os.PathLike)):
         results = []
-        for index, chunk in enumerate(pd.read_csv(data, chunksize=10000), start=1):
+        for index, chunk in enumerate(pd.read_csv(data, chunksize=10_000), start=1):
             _notify(callback, 0.5, f"Processing prediction chunk {index}")
             results.append(
                 process_prediction_chunk(
@@ -313,9 +303,7 @@ def predict_batch(
                     handle_negations,
                 )
             )
-        if not results:
-            return pd.DataFrame()
-        output = pd.concat(results, ignore_index=True)
+        output = pd.concat(results, ignore_index=True) if results else pd.DataFrame()
     else:
         output = process_prediction_chunk(
             model,
@@ -341,7 +329,6 @@ def process_prediction_chunk(
     perform_lemmatization,
     handle_negations,
 ):
-    """Predict one in-memory chunk without mutating the caller's DataFrame."""
     if text_column not in chunk.columns:
         raise ValueError(f"Text column '{text_column}' not found in data")
     result = chunk.copy()
@@ -359,50 +346,3 @@ def process_prediction_chunk(
         for index, class_name in enumerate(model.classes_):
             result[f"confidence_{class_name}"] = probabilities[:, index]
     return result
-
-
-def save_chunked_model(model, vectorizer, metrics, model_name, directory="models"):
-    """Persist a chunked model bundle. Only load artifacts from trusted sources."""
-    model_dir = Path(directory) / model_name.lower().replace(" ", "_")
-    model_dir.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, model_dir / "model.joblib")
-    joblib.dump(vectorizer, model_dir / "vectorizer.joblib")
-    joblib.dump(metrics, model_dir / "metrics.joblib")
-    info = {
-        "name": model_name,
-        "type": type(model).__name__,
-        "n_features": getattr(vectorizer, "n_features", None),
-        "accuracy": metrics.get("accuracy"),
-        "labels": list(getattr(model, "classes_", [])),
-        "random_state": metrics.get("random_state"),
-        "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-    }
-    joblib.dump(info, model_dir / "info.joblib")
-    return str(model_dir)
-
-
-def load_chunked_model(model_dir):
-    """Load a trusted joblib model bundle."""
-    warnings.warn(
-        "joblib/pickle artifacts can execute code when loaded. Load only files you trust.",
-        UserWarning,
-        stacklevel=2,
-    )
-    path = Path(model_dir)
-    model = joblib.load(path / "model.joblib")
-    vectorizer = joblib.load(path / "vectorizer.joblib")
-    metrics = joblib.load(path / "metrics.joblib") if (path / "metrics.joblib").exists() else None
-    info = joblib.load(path / "info.joblib") if (path / "info.joblib").exists() else None
-    return model, vectorizer, metrics, info
-
-
-def get_chunked_models(directory="models"):
-    """Return model directories containing a persisted model artifact."""
-    path = Path(directory)
-    if not path.exists():
-        return []
-    return sorted(
-        str(item)
-        for item in path.iterdir()
-        if item.is_dir() and (item / "model.joblib").exists()
-    )

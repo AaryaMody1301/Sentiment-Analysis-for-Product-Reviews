@@ -1,12 +1,12 @@
 # Sentiment Analysis for Product Reviews
 
-A Streamlit-based NLP application for exploring, training, comparing, and using classical sentiment classifiers on product-review data with explicit correctness, evidence, inference, and artifact-security contracts.
+An evidence-first Streamlit NLP application for training and using classical product-review sentiment models with explicit label, evaluation, inference, and artifact-security contracts.
 
 ## Current status
 
-**v1.0.0 release-ready.** Phases 1-5 are complete and the full release candidate has passed the frozen external benchmark, normal CI, and the strict release gate on Python 3.11 and 3.13.
+**v1.0.0 release-ready.** The repository has a frozen external benchmark, deterministic training/evaluation paths, safe inference persistence, app-level smoke tests, CI on Python 3.11 and 3.13, and a strict release gate that validates the committed benchmark evidence rather than only checking that the file exists.
 
-The application includes deterministic training/evaluation, explicit numeric-label schemas, reliable inference bundles, calibrated confidence, error analysis, preferred `.skops` persistence, artifact provenance/model cards, CI on Python 3.11 and 3.13, and release validation.
+The retired legacy Streamlit monolith and pickle/joblib model-management UI are not part of the v1 application path. `main.py` is a small release landing page and `pages/1_Reliable_Inference.py` is the supported training/inference experience.
 
 ## Label contracts
 
@@ -17,11 +17,11 @@ Numeric labels are not interpreted by value alone:
 | `binary_01` | `0 = negative`, `1 = positive` |
 | `stars_1_to_5` | `1-2 = negative`, `3 = neutral`, `4-5 = positive` |
 
-`auto` inference accepts binary values only in clear label/sentiment-style columns and star values only in rating/star/score-style columns. Ambiguous numeric columns raise an error instead of risking incorrect ground truth. Unknown text labels are rejected rather than silently converted to neutral.
+`auto` inference accepts binary values only in clear label/sentiment-style columns and star values only in rating/star/score-style columns. Ambiguous numeric columns raise an error. Explicit numeric schemas also require finite integer-valued inputs, so values such as `0.5` or `2.9` are rejected rather than truncated.
 
 ## Models
 
-The application supports Logistic Regression, Multinomial Naive Bayes, Linear SVM, and Random Forest. TF-IDF is used for normal training and HashingVectorizer supports bounded-memory processing.
+The application supports Logistic Regression, Multinomial Naive Bayes, Linear SVM, and Random Forest. TF-IDF is used for normal training. `src/chunked_processing.py` provides a deterministic HashingVectorizer + MultinomialNB path for bounded-memory CSV processing without serialized-model persistence.
 
 The frozen external benchmark uses Dummy Classifier, Multinomial Naive Bayes, Logistic Regression, and Linear SVM. Random Forest is intentionally outside the sparse-text benchmark because that benchmark prioritizes strong, resource-efficient classical baselines.
 
@@ -36,18 +36,18 @@ The benchmark source is MTEB `amazon_polarity`, pinned to revision `ec149c1fe360
 | Logistic Regression | 0.9070 | 0.907000 | 0.9070 |
 | **Linear SVM** | **0.9088** | **0.908800** | **0.9088** |
 
-Linear SVM ranks first by macro F1, but only by `0.0018` over Logistic Regression. That is treated as a narrow result on this frozen subset, not evidence of universal superiority.
+Linear SVM ranks first by macro F1, but only by `0.0018` over Logistic Regression. That is a narrow result on this frozen subset, not evidence of universal superiority.
 
 The successful GitHub Actions evidence run was `33471236375` on September 1, 2026. Integrity checks found zero duplicate texts in either selected split and zero train/test text overlap. The selected sequence fingerprints are:
 
 - train: `ec4fc2ad1b734b6d43221fda8a67e6be5162eeec4426921860ff8181e928e944`;
 - test: `00c1205e35fb1e5862e3fe9ea769e1acded6c0089cddb955d37e22ebbe042550`.
 
-The complete result, including per-class metrics, confusion matrices, runtime versions, and selection metadata, is committed at [`benchmarks/results/amazon_polarity_phase2_v1.json`](benchmarks/results/amazon_polarity_phase2_v1.json). See [`benchmarks/README.md`](benchmarks/README.md) and the frozen [`protocol`](benchmarks/protocols/amazon_polarity_phase2_v1.json).
+The complete result is committed at [`benchmarks/results/amazon_polarity_phase2_v1.json`](benchmarks/results/amazon_polarity_phase2_v1.json). See [`benchmarks/README.md`](benchmarks/README.md) and the frozen [`protocol`](benchmarks/protocols/amazon_polarity_phase2_v1.json).
 
 This is explicitly the **50,000-train / 10,000-test subset benchmark**, not a result on the full 3.6M-review training split.
 
-The benchmark can be reproduced manually with:
+Reproduce it manually with:
 
 ```bash
 python -m pip install -e ".[benchmark]"
@@ -58,7 +58,7 @@ The smaller `smoke` profile is for integration checks only and must not be used 
 
 ## Reliable inference
 
-`src/inference.py` defines an `InferenceBundle`: the fitted estimator, resolved label schema, random seed, feature settings, and immutable preprocessing settings travel together. Raw prediction text is transformed with the same settings used during training instead of later UI choices.
+`src/inference.py` defines an `InferenceBundle`: the fitted estimator, resolved label schema, random seed, feature settings, and immutable preprocessing settings travel together. Raw prediction text is transformed with the same settings used during training.
 
 Confidence-aware training can wrap the complete TF-IDF + classifier pipeline in cross-validated calibration. Calibration is fit only inside the training split; the holdout remains untouched. Estimators without real probability estimates return no confidence instead of a synthetic decision-score probability.
 
@@ -66,16 +66,9 @@ Evaluation includes macro F1, balanced accuracy, accuracy, macro precision/recal
 
 ## Safe persistence and provenance
 
-Preferred inference artifacts use `skops==0.14.0` and end in `.inference.skops`. The application inspects each preferred artifact with `skops.io.get_untrusted_types()`. Default-trusted types are accepted, and the only additional accepted names are a static reviewed allowlist of scikit-learn calibration internals produced by this project's calibrated inference path. Any other reported type is rejected; the application never auto-trusts the full set requested by an arbitrary file.
+Preferred inference artifacts use `skops==0.14.0` and end in `.inference.skops`. Before loading, the application inspects serialized types with `skops.io.get_untrusted_types()`. Default-trusted types are accepted, and the only additional accepted names are a static reviewed allowlist of scikit-learn calibration internals produced by this project's calibrated inference path. Any other reported type is rejected.
 
-When a preferred bundle is saved, the Reliable Inference page also writes:
-
-- a JSON manifest with artifact SHA-256, runtime versions, model/inference metadata, code revision when discoverable, evaluation metrics, and training-data fingerprint; and
-- a generated model card covering intended use, limitations, provenance, evaluation, benchmark-evidence status, reproducibility, and security.
-
-See [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) for the model-card contract.
-
-Legacy `.joblib` persistence remains available only for backwards compatibility with fully trusted local files. Joblib uses pickle semantics and can execute code while loading a malicious artifact. See [`SECURITY.md`](SECURITY.md).
+The v1 application does not expose pickle/joblib model loading. When a preferred bundle is saved, the Reliable Inference page also writes a JSON provenance manifest and generated model card. See [`SECURITY.md`](SECURITY.md) and [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md).
 
 ## Setup
 
@@ -89,7 +82,7 @@ python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-Optional WordNet lemmatization:
+Optional WordNet lemmatization is explicit and never downloaded at import time:
 
 ```bash
 python -m nltk.downloader wordnet
@@ -108,30 +101,17 @@ python -m pip install -e ".[dev]"
 python -m compileall -q src main.py pages tests
 python -m pytest -q
 python -m src.release --check candidate
+python -m src.release --check release
 python -m pip check
 ```
 
-CI runs those checks on Python 3.11 and 3.13. The stricter release validation is:
-
-```bash
-python -m src.release --check release
-```
-
-Release mode requires the committed frozen benchmark evidence, project version `1.0.0`, release/security documentation, the pinned safe-artifact dependency, and a repository tree free of generated serialized models.
+CI runs those checks on Python 3.11 and 3.13. Release mode validates the exact frozen benchmark identity, dataset revision, selection counts, fingerprints, duplicate/overlap integrity, metric snapshot and winner, in addition to version/docs/security/artifact hygiene.
 
 ## Data and evidence
 
-`datasets/sample_reviews.csv` is a demonstration dataset, not a benchmark. Large/raw datasets remain outside Git. CSV parsing is strict: malformed input raises an error instead of silently dropping records.
+`datasets/sample_reviews.csv` is demonstration data, not a benchmark. Large/raw datasets remain outside Git. CSV parsing is strict: malformed input raises an error instead of silently dropping records.
 
 Performance claims require committed benchmark evidence with identified data, immutable revision, selection protocol, fingerprints, split-integrity checks, metrics, and runtime metadata.
-
-## Roadmap
-
-- **Phase 1 - complete:** correctness, deterministic behavior, packaging, tests, CI
-- **Phase 2 - complete:** frozen external benchmark protocol and committed evidence
-- **Phase 3 - complete:** inference contract, calibrated confidence, error analysis, Reliable Inference page
-- **Phase 4 - complete:** safe persistence, provenance/model cards, release validation, generated-artifact cleanup
-- **Phase 5 - complete:** integrated v1.0.0 evidence, final CI, and strict release validation
 
 ## License
 

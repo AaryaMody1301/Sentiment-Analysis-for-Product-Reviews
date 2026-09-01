@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-import re
-import warnings
-from functools import lru_cache
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
+from functools import lru_cache
 from typing import Any, Iterable, Sequence
 
-import joblib
 import numpy as np
 import pandas as pd
 from sklearn.calibration import CalibratedClassifierCV
@@ -116,7 +112,9 @@ class InferenceBundle:
                 "Train with calibration enabled to obtain confidence values."
             )
         values = _coerce_texts(texts)
-        return np.asarray(self.model.predict_proba(self.preprocess_many(values)), dtype=float)
+        return np.asarray(
+            self.model.predict_proba(self.preprocess_many(values)), dtype=float
+        )
 
     def predict_frame(self, texts: Sequence[object] | object) -> pd.DataFrame:
         values = _coerce_texts(texts)
@@ -134,7 +132,9 @@ class InferenceBundle:
         probabilities = self.predict_proba(values)
         classes = np.asarray(self.classes)
         winning_indices = np.argmax(probabilities, axis=1)
-        result["confidence"] = probabilities[np.arange(len(probabilities)), winning_indices]
+        result["confidence"] = probabilities[
+            np.arange(len(probabilities)), winning_indices
+        ]
         for index, class_name in enumerate(classes):
             result[f"probability_{class_name}"] = probabilities[:, index]
         return result
@@ -177,12 +177,7 @@ def train_inference_bundle(
     calibration_method: str = "sigmoid",
     calibration_cv: int = 3,
 ) -> tuple[InferenceBundle, dict[str, Any], pd.DataFrame]:
-    """Train an inference-safe bundle and evaluate it on an untouched holdout split.
-
-    Calibration, when enabled, is fitted only inside the training split via
-    cross-validation. The holdout split is never used to fit the vectorizer,
-    classifier, or calibrator.
-    """
+    """Train a bundle and evaluate it on an untouched stratified holdout split."""
 
     if text_column not in df.columns or sentiment_column not in df.columns:
         raise KeyError("The configured text or sentiment column is missing.")
@@ -196,9 +191,7 @@ def train_inference_bundle(
         raise ValueError("No complete text/label rows are available for training.")
 
     resolved_schema = resolve_label_schema(
-        working[sentiment_column],
-        sentiment_column,
-        label_schema,
+        working[sentiment_column], sentiment_column, label_schema
     )
     normalized = normalize_sentiment_series(
         working[sentiment_column],
@@ -275,12 +268,18 @@ def train_inference_bundle(
             "confidence_kind": (
                 f"calibrated_{calibration_method}"
                 if calibrate
-                else ("native_probability" if hasattr(model, "predict_proba") else "unavailable")
+                else (
+                    "native_probability"
+                    if hasattr(model, "predict_proba")
+                    else "unavailable"
+                )
             ),
         },
     )
 
-    metrics = evaluate_inference_bundle(bundle, X_test_raw.tolist(), y_test.tolist())
+    metrics = evaluate_inference_bundle(
+        bundle, X_test_raw.tolist(), y_test.tolist()
+    )
     errors = build_error_analysis(bundle, X_test_raw.tolist(), y_test.tolist())
     return bundle, metrics, errors
 
@@ -301,6 +300,8 @@ def expected_calibration_error(
         raise ValueError("y_true, y_pred, and confidence must have equal length.")
     if len(true) == 0:
         raise ValueError("Calibration error requires at least one example.")
+    if not np.all(np.isfinite(conf)) or np.any((conf < 0.0) | (conf > 1.0)):
+        raise ValueError("confidence values must be finite and between 0 and 1.")
 
     correctness = (true == predicted).astype(float)
     edges = np.linspace(0.0, 1.0, n_bins + 1)
@@ -352,20 +353,34 @@ def evaluate_inference_bundle(
         raise ValueError("Evaluation requires at least one example.")
 
     truth = np.asarray([str(value) for value in y_true], dtype=object)
-    predicted = np.asarray([str(value) for value in bundle.predict(texts)], dtype=object)
+    predicted = np.asarray(
+        [str(value) for value in bundle.predict(texts)], dtype=object
+    )
     labels = sorted(set(truth).union(predicted))
     metrics: dict[str, Any] = {
         "accuracy": round(float(accuracy_score(truth, predicted)), 6),
         "macro_precision": round(
-            float(precision_score(truth, predicted, average="macro", zero_division=0)), 6
+            float(
+                precision_score(
+                    truth, predicted, average="macro", zero_division=0
+                )
+            ),
+            6,
         ),
         "macro_recall": round(
-            float(recall_score(truth, predicted, average="macro", zero_division=0)), 6
+            float(recall_score(truth, predicted, average="macro", zero_division=0)),
+            6,
         ),
-        "macro_f1": round(float(f1_score(truth, predicted, average="macro", zero_division=0)), 6),
-        "balanced_accuracy": round(float(balanced_accuracy_score(truth, predicted)), 6),
+        "macro_f1": round(
+            float(f1_score(truth, predicted, average="macro", zero_division=0)), 6
+        ),
+        "balanced_accuracy": round(
+            float(balanced_accuracy_score(truth, predicted)), 6
+        ),
         "labels": labels,
-        "confusion_matrix": confusion_matrix(truth, predicted, labels=labels).tolist(),
+        "confusion_matrix": confusion_matrix(
+            truth, predicted, labels=labels
+        ).tolist(),
         "confidence_kind": bundle.confidence_kind,
     }
 
@@ -376,12 +391,16 @@ def evaluate_inference_bundle(
         confidence = probabilities[np.arange(len(probabilities)), winning]
         metrics.update(
             {
-                "log_loss": round(float(log_loss(truth, probabilities, labels=class_order)), 6),
+                "log_loss": round(
+                    float(log_loss(truth, probabilities, labels=class_order)), 6
+                ),
                 "mean_confidence": round(float(np.mean(confidence)), 6),
                 "expected_calibration_error": round(
                     expected_calibration_error(truth, predicted, confidence), 6
                 ),
-                "selective_accuracy": _selective_metrics(truth, predicted, confidence),
+                "selective_accuracy": _selective_metrics(
+                    truth, predicted, confidence
+                ),
             }
         )
     else:
@@ -406,7 +425,10 @@ def build_error_analysis(
     predictions = bundle.predict_frame(texts)
     result = predictions.rename(columns={"text": "review_text"}).copy()
     result["true_sentiment"] = [str(value) for value in y_true]
-    result["correct"] = result["predicted_sentiment"].astype(str) == result["true_sentiment"]
+    result["correct"] = (
+        result["predicted_sentiment"].astype(str)
+        == result["true_sentiment"]
+    )
     result["error_type"] = np.where(
         result["correct"],
         "correct",
@@ -414,51 +436,14 @@ def build_error_analysis(
         + " -> "
         + result["predicted_sentiment"].astype(str),
     )
-    # Surface the most confident mistakes first, then uncertain correct predictions.
     result["_error_rank"] = (~result["correct"]).astype(int)
-    result = result.sort_values(
-        ["_error_rank", "confidence"],
-        ascending=[False, False],
-        na_position="last",
-        kind="stable",
-    ).drop(columns=["_error_rank"])
-    return result.reset_index(drop=True)
-
-
-def _safe_name(name: str) -> str:
-    value = re.sub(r"[^a-zA-Z0-9._-]+", "_", name.strip()).strip("._")
-    if not value:
-        raise ValueError("Invalid inference bundle name.")
-    return value.lower()
-
-
-def save_inference_bundle(
-    bundle: InferenceBundle,
-    bundle_name: str,
-    models_dir: str | Path = "models",
-) -> str:
-    directory = Path(models_dir)
-    directory.mkdir(parents=True, exist_ok=True)
-    path = directory / f"{_safe_name(bundle_name)}.inference.joblib"
-    joblib.dump(bundle, path)
-    return str(path)
-
-
-def load_inference_bundle(path: str | Path) -> InferenceBundle:
-    bundle_path = Path(path)
-    if not bundle_path.is_file():
-        raise FileNotFoundError(bundle_path)
-    warnings.warn(
-        "joblib/pickle artifacts can execute code when loaded. Load only files you trust.",
-        UserWarning,
-        stacklevel=2,
-    )
-    bundle = joblib.load(bundle_path)
-    if not isinstance(bundle, InferenceBundle):
-        raise TypeError("The artifact is not an InferenceBundle.")
-    if bundle.schema_version != BUNDLE_SCHEMA_VERSION:
-        raise ValueError(
-            f"Unsupported inference bundle schema {bundle.schema_version}; "
-            f"expected {BUNDLE_SCHEMA_VERSION}."
+    return (
+        result.sort_values(
+            ["_error_rank", "confidence"],
+            ascending=[False, False],
+            na_position="last",
+            kind="stable",
         )
-    return bundle
+        .drop(columns=["_error_rank"])
+        .reset_index(drop=True)
+    )

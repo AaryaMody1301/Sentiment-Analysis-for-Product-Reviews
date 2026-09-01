@@ -1,17 +1,10 @@
 # Inference contract
 
-Phase 3 separates **model evaluation** from **deployment inference**. A trained classifier is not sufficient by itself: prediction also depends on the label contract and the exact text preprocessing used before the vectorizer sees a review.
+A trained classifier is not sufficient by itself: prediction also depends on label semantics and the exact preprocessing used before the vectorizer sees a review. The v1 application therefore treats those settings as part of the model contract.
 
 ## `InferenceBundle`
 
-`src.inference.InferenceBundle` stores:
-
-- the fitted estimator/pipeline;
-- immutable `PreprocessingConfig` settings;
-- the resolved label schema;
-- model name and random seed;
-- calibration method, when enabled;
-- training/holdout metadata and feature settings.
+`src.inference.InferenceBundle` stores the fitted estimator/pipeline, immutable `PreprocessingConfig`, resolved label schema, model name, random seed, calibration method, and training/holdout metadata.
 
 Call `bundle.predict(...)` or `bundle.predict_frame(...)` with raw review text. The bundle applies its own preprocessing contract before inference.
 
@@ -19,31 +12,30 @@ Call `bundle.predict(...)` or `bundle.predict_frame(...)` with raw review text. 
 
 Confidence is never manufactured from a decision score.
 
-- With calibration enabled, the full TF-IDF + classifier pipeline is wrapped by `CalibratedClassifierCV` and calibrated using stratified cross-validation **inside the training split**. The untouched holdout is used only for evaluation.
-- If calibration is disabled but the estimator natively implements `predict_proba`, results are labeled `native_probability`, not calibrated confidence.
-- If the estimator has no probability interface and calibration is disabled, confidence is unavailable and returned as `NaN` in prediction tables.
+- With calibration enabled, the full TF-IDF + classifier pipeline is wrapped by `CalibratedClassifierCV` and calibrated using stratified cross-validation **inside the training split**.
+- If calibration is disabled but the estimator natively implements `predict_proba`, results are labeled `native_probability`.
+- If the estimator has no probability interface and calibration is disabled, confidence is unavailable and returned as `NaN`.
 
-The default calibration method is sigmoid. This is a conservative choice for classical text models and avoids isotonic calibration's tendency to overfit when calibration samples are limited.
+The untouched holdout is used only for evaluation.
 
 ## Reproducible preprocessing
 
-The Phase 3 preprocessing contract defaults to resource-independent preprocessing. WordNet lemmatization is opt-in. If a bundle explicitly requires WordNet and the resource is missing, training or prediction fails clearly instead of silently changing the text transform.
+Resource-independent preprocessing is the default. WordNet lemmatization is opt-in. If a bundle explicitly requires WordNet and the resource is missing, training or prediction fails clearly instead of silently changing the transform. No NLTK resources are downloaded at import time.
+
+Explicit `binary_01` and `stars_1_to_5` schemas require finite integer-valued inputs. Fractional values are rejected rather than truncated.
 
 ## Evaluation and error analysis
 
-`evaluate_inference_bundle` reports standard classification metrics plus probability-aware diagnostics when available:
+`evaluate_inference_bundle` reports macro F1, balanced accuracy, accuracy, macro precision/recall, and probability-aware diagnostics when available: log loss, expected calibration error, mean confidence, and confidence-threshold coverage/selective accuracy.
 
-- log loss;
-- expected calibration error (ECE);
-- mean predicted confidence;
-- coverage and accuracy for confidence thresholds 0.5, 0.7, 0.8 and 0.9.
-
-`build_error_analysis` returns row-level records with raw review text, true sentiment, predicted sentiment, confidence, correctness and error type. Confident errors are surfaced first so failure modes can be inspected before adding model complexity.
+`build_error_analysis` returns row-level records with raw review text, true sentiment, predicted sentiment, confidence, correctness, and error type. Confident errors are surfaced first.
 
 ## Persistence and security
 
-`save_inference_bundle` and `load_inference_bundle` use joblib for compatibility. Joblib/pickle artifacts can execute code while loading. Only load artifacts created by this project or another fully trusted source. Safer persistence is a Phase 4 release-hardening item.
+Supported persistence is implemented in `src.safe_persistence` with `.inference.skops` artifacts. The loader accepts default-trusted types plus only the exact reviewed scikit-learn calibration/CV names documented in `SECURITY.md`. Any other reported type is rejected.
 
-## Streamlit migration
+The v1 Streamlit application does not expose pickle/joblib model loading.
 
-The existing app currently trains on a `processed_text` column and preprocesses new prediction text using the current UI controls. Phase 3 adds a separate **Reliable Inference** page that trains from raw text and stores the preprocessing contract inside the bundle. This avoids a risky rewrite of the legacy monolith while giving users a trustworthy path immediately.
+## Streamlit application
+
+`main.py` is the release entrypoint and `pages/1_Reliable_Inference.py` is the supported training/inference page. The previous monolithic app path was retired so preprocessing, confidence, persistence, and provenance behavior cannot diverge between two user interfaces.
