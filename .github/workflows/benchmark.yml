@@ -1,13 +1,6 @@
 name: Benchmark
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "src/benchmarking.py"
-      - "benchmarks/**"
-      - "pyproject.toml"
-      - ".github/workflows/benchmark.yml"
   workflow_dispatch:
     inputs:
       profile:

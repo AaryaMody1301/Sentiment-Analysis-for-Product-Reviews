@@ -4,9 +4,9 @@ A Streamlit-based NLP application for exploring, training, comparing, and using 
 
 ## Current status
 
-**Phase 4: release hardening (stacked on Phase 3).** Phase 1 established correctness and deterministic foundations. Phase 2 adds a frozen external benchmark and remains behind its benchmark-evidence gate. Phase 3 adds inference-safe preprocessing contracts, calibrated confidence, and error analysis. Phase 4 prepares the repository for a v1.0 release without bypassing those earlier gates.
+**v1.0.0 release-ready.** Phases 1-5 are complete and the full release candidate has passed the frozen external benchmark, normal CI, and the strict release gate on Python 3.11 and 3.13.
 
-Phase 4 adds safe-by-default `.skops` inference artifacts, per-artifact provenance manifests/model cards, release validation, package metadata, and cleanup of previously committed generated model binaries. The project version remains pre-1.0 until the Phase 2 evidence result is committed and the stacked phases are merged in order.
+The application includes deterministic training/evaluation, explicit numeric-label schemas, reliable inference bundles, calibrated confidence, error analysis, preferred `.skops` persistence, artifact provenance/model cards, CI on Python 3.11 and 3.13, and release validation.
 
 ## Label contracts
 
@@ -23,28 +23,38 @@ Numeric labels are not interpreted by value alone:
 
 The application supports Logistic Regression, Multinomial Naive Bayes, Linear SVM, and Random Forest. TF-IDF is used for normal training and HashingVectorizer supports bounded-memory processing.
 
-The Phase 2 external benchmark uses Dummy Classifier, Multinomial Naive Bayes, Logistic Regression, and Linear SVM. Random Forest is intentionally outside the frozen sparse-text benchmark because that benchmark prioritizes strong, resource-efficient classical baselines.
+The frozen external benchmark uses Dummy Classifier, Multinomial Naive Bayes, Logistic Regression, and Linear SVM. Random Forest is intentionally outside the sparse-text benchmark because that benchmark prioritizes strong, resource-efficient classical baselines.
 
-## Reproducible Phase 2 benchmark
+## Evidence-backed Amazon Polarity benchmark
 
-The benchmark source is MTEB `amazon_polarity`, pinned to revision `ec149c1fe36043668a50804214d4597804001f6f`. The frozen Phase 2 profile uses:
+The benchmark source is MTEB `amazon_polarity`, pinned to revision `ec149c1fe36043668a50804214d4597804001f6f`. The frozen profile uses 50,000 balanced training reviews and 10,000 balanced test reviews with seed `42`, train-only TF-IDF, and up to 50,000 unigram/bigram features.
 
-- 50,000 training reviews: 25,000 per class;
-- 10,000 test reviews: 5,000 per class;
-- fixed seed `42` and pinned `datasets==5.0.1`;
-- train-only TF-IDF with up to 50,000 unigram/bigram features;
-- macro F1 as the primary metric;
-- accuracy, macro precision/recall, balanced accuracy, per-class metrics, and a confusion matrix;
-- selected-sample SHA-256 fingerprints plus duplicate and train/test-overlap checks.
+| Model | Accuracy | Macro F1 | Balanced accuracy |
+| --- | ---: | ---: | ---: |
+| Dummy, most frequent | 0.5000 | 0.333333 | 0.5000 |
+| Multinomial Naive Bayes | 0.8878 | 0.887799 | 0.8878 |
+| Logistic Regression | 0.9070 | 0.907000 | 0.9070 |
+| **Linear SVM** | **0.9088** | **0.908800** | **0.9088** |
 
-This is the **Phase 2 subset benchmark**, not a result on the full 3.6M-review training split. See [benchmarks/README.md](benchmarks/README.md) and the frozen [protocol](benchmarks/protocols/amazon_polarity_phase2_v1.json).
+Linear SVM ranks first by macro F1, but only by `0.0018` over Logistic Regression. That is treated as a narrow result on this frozen subset, not evidence of universal superiority.
+
+The successful GitHub Actions evidence run was `33471236375` on September 1, 2026. Integrity checks found zero duplicate texts in either selected split and zero train/test text overlap. The selected sequence fingerprints are:
+
+- train: `ec4fc2ad1b734b6d43221fda8a67e6be5162eeec4426921860ff8181e928e944`;
+- test: `00c1205e35fb1e5862e3fe9ea769e1acded6c0089cddb955d37e22ebbe042550`.
+
+The complete result, including per-class metrics, confusion matrices, runtime versions, and selection metadata, is committed at [`benchmarks/results/amazon_polarity_phase2_v1.json`](benchmarks/results/amazon_polarity_phase2_v1.json). See [`benchmarks/README.md`](benchmarks/README.md) and the frozen [`protocol`](benchmarks/protocols/amazon_polarity_phase2_v1.json).
+
+This is explicitly the **50,000-train / 10,000-test subset benchmark**, not a result on the full 3.6M-review training split.
+
+The benchmark can be reproduced manually with:
 
 ```bash
 python -m pip install -e ".[benchmark]"
 python -m src.benchmarking --profile phase2
 ```
 
-The `smoke` profile is for integration checks only and must not be used for release performance claims.
+The smaller `smoke` profile is for integration checks only and must not be used for release performance claims.
 
 ## Reliable inference
 
@@ -52,20 +62,20 @@ The `smoke` profile is for integration checks only and must not be used for rele
 
 Confidence-aware training can wrap the complete TF-IDF + classifier pipeline in cross-validated calibration. Calibration is fit only inside the training split; the holdout remains untouched. Estimators without real probability estimates return no confidence instead of a synthetic decision-score probability.
 
-Evaluation includes macro F1, balanced accuracy, accuracy, macro precision/recall, log loss when probabilities exist, expected calibration error, confidence-threshold coverage/selective accuracy, and row-level error analysis. See [docs/INFERENCE.md](docs/INFERENCE.md).
+Evaluation includes macro F1, balanced accuracy, accuracy, macro precision/recall, log loss when probabilities exist, expected calibration error, confidence-threshold coverage/selective accuracy, and row-level error analysis. See [`docs/INFERENCE.md`](docs/INFERENCE.md).
 
 ## Safe persistence and provenance
 
-Preferred inference artifacts use `skops==0.14.0` and end in `.inference.skops`. The application inspects each preferred artifact with `skops.io.get_untrusted_types()`. Default-trusted types are accepted, and the only additional accepted names are a static reviewed allowlist of scikit-learn calibration internals produced by this project's `CalibratedClassifierCV` path. Any other reported type is rejected; the application never auto-trusts the full set requested by an arbitrary file.
+Preferred inference artifacts use `skops==0.14.0` and end in `.inference.skops`. The application inspects each preferred artifact with `skops.io.get_untrusted_types()`. Default-trusted types are accepted, and the only additional accepted names are a static reviewed allowlist of scikit-learn calibration internals produced by this project's calibrated inference path. Any other reported type is rejected; the application never auto-trusts the full set requested by an arbitrary file.
 
 When a preferred bundle is saved, the Reliable Inference page also writes:
 
 - a JSON manifest with artifact SHA-256, runtime versions, model/inference metadata, code revision when discoverable, evaluation metrics, and training-data fingerprint; and
 - a generated model card covering intended use, limitations, provenance, evaluation, benchmark-evidence status, reproducibility, and security.
 
-See [docs/MODEL_CARD.md](docs/MODEL_CARD.md) for the model-card contract.
+See [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) for the model-card contract.
 
-Legacy `.joblib` persistence remains available only for backwards compatibility with fully trusted local files. Joblib uses pickle semantics and can execute code while loading a malicious artifact. See [SECURITY.md](SECURITY.md).
+Legacy `.joblib` persistence remains available only for backwards compatibility with fully trusted local files. Joblib uses pickle semantics and can execute code while loading a malicious artifact. See [`SECURITY.md`](SECURITY.md).
 
 ## Setup
 
@@ -101,7 +111,13 @@ python -m src.release --check candidate
 python -m pip check
 ```
 
-CI runs these checks on Python 3.11 and 3.13. A separate manual **Release gate** runs the stricter `python -m src.release --check release`; that check intentionally fails until the committed Phase 2 benchmark result exists and the package version is explicitly set to `1.0.0`.
+CI runs those checks on Python 3.11 and 3.13. The stricter release validation is:
+
+```bash
+python -m src.release --check release
+```
+
+Release mode requires the committed frozen benchmark evidence, project version `1.0.0`, release/security documentation, the pinned safe-artifact dependency, and a repository tree free of generated serialized models.
 
 ## Data and evidence
 
@@ -112,10 +128,11 @@ Performance claims require committed benchmark evidence with identified data, im
 ## Roadmap
 
 - **Phase 1 - complete:** correctness, deterministic behavior, packaging, tests, CI
-- **Phase 2 - evidence gate active:** reproducible external benchmark and evidence-backed model comparison
-- **Phase 3 - code complete / stacked:** inference contract, calibrated confidence, error analysis, product migration
-- **Phase 4 - active / stacked:** safe persistence, provenance/model cards, release validation, generated-artifact cleanup, v1.0 readiness
+- **Phase 2 - complete:** frozen external benchmark protocol and committed evidence
+- **Phase 3 - complete:** inference contract, calibrated confidence, error analysis, Reliable Inference page
+- **Phase 4 - complete:** safe persistence, provenance/model cards, release validation, generated-artifact cleanup
+- **Phase 5 - complete:** integrated v1.0.0 evidence, final CI, and strict release validation
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [`LICENSE`](LICENSE).
