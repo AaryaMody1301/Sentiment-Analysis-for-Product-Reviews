@@ -4,7 +4,7 @@ A Streamlit-based NLP application for exploring, training, comparing, and using 
 
 ## Current status
 
-**v1.0.0 release candidate.** Phases 1-4 are integrated into `main`, and Phase 5 closes the final evidence and release gates. The frozen Amazon Polarity subset benchmark now has a successful, committed result; the package version is `1.0.0`; and the final release validation is the remaining gate before this release branch can merge.
+**v1.0.0 release-ready.** Phases 1-5 are complete and the full release candidate has passed the frozen external benchmark, normal CI, and the strict release gate on Python 3.11 and 3.13.
 
 The application includes deterministic training/evaluation, explicit numeric-label schemas, reliable inference bundles, calibrated confidence, error analysis, preferred `.skops` persistence, artifact provenance/model cards, CI on Python 3.11 and 3.13, and release validation.
 
@@ -131,7 +131,7 @@ Performance claims require committed benchmark evidence with identified data, im
 - **Phase 2 - complete:** frozen external benchmark protocol and committed evidence
 - **Phase 3 - complete:** inference contract, calibrated confidence, error analysis, Reliable Inference page
 - **Phase 4 - complete:** safe persistence, provenance/model cards, release validation, generated-artifact cleanup
-- **Phase 5 - release candidate:** integrated v1.0.0 evidence, final CI, and final release gate
+- **Phase 5 - complete:** integrated v1.0.0 evidence, final CI, and strict release validation
 
 ## License
 
