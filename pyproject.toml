@@ -18,14 +18,14 @@ classifiers = [
 dependencies = [
   "nltk>=3.9,<4",
   "numpy>=1.26,<3",
-  "pandas>=2.2,<3",
+  "pandas>=2.2,<4",
   "scikit-learn>=1.8,<2",
   "skops==0.14.0",
   "streamlit>=1.62,<2",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3,<9"]
+dev = ["pytest>=8.3,<10"]
 benchmark = ["datasets==5.0.1"]
 
 [project.urls]
